@@ -1,0 +1,8 @@
+﻿"EventTypeID","EventTypeName"
+"1","Impression"
+"2","Display Click"
+"3","Search Click"
+"4","System Interaction"
+"5","Video Interaction"
+"6","Custom Interaction"
+"7","Panel"
