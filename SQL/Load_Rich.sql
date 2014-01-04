@@ -1,8 +1,3 @@
-------------------------------------------------------------------------------------------------------------------------
-# This process is for loading "RICH" Cookie files from Mediamind into the MySql database
-# 1st step is to load CSV directly into the DB in a Varchar format. 
-# 2nd step is to move the data from that Varchar table into a correctly formatted table which we will query against
-# 3rd step is to clear the Varchar Load table and start loading the next file ------------------------------------------------------------------------------------------------------------------------
 USE DWA_SF_Cookie;
 
 # 1st step
@@ -60,8 +55,3 @@ PCP varchar (255)
 
 
 
-# ------------------------------------------------------------------------------------------------------------------------
-# 4th step. Now go back and re-name the next load file as "MM_CLD_Standard_Agency_39792_Daily.csv" and start the process again
-# ------------------------------------------------------------------------------------------------------------------------
-
-#select date(InteractionDate), count(*) from MM_Rich group by date(InteractionDate)
