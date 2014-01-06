@@ -8,7 +8,8 @@ TMP_PATH="../tmp/"
 USER="tomb"
 HOST="184.105.184.30"
 PW="DW4mediatb"
-DB="DWA_SF_Cookie"
+DB=`cat ../../pw/mysql`
+
 
 # first, retrieve list of available files from server. 
 ftp -pid ftp.platform.mediamind.com > $LOG_PATH/transfer.log << EOF
