@@ -1,5 +1,10 @@
 #!/bin/bash
 
+SQL_PATH="../SQL/"
+DATA_PATH="../downloaded/"
+LOG_PATH="../logs/"
+TMP_PATH="../tmp/"
+
 declare -a arr=("Conversion" "Rich" "Standard")
 for i in ${arr[@]}
 do
