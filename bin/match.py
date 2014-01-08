@@ -49,7 +49,7 @@ for f in os.listdir(match_path):
 		# open file, read file, decode file, split by newline.
 		data = re.sub('"', "",open(match_path+f).read().decode("utf-8-sig")).splitlines()
 		head = data[0].split(",")
-		d_stmt = "DROP TABLE IF EXISTS %s"%tableName
+		#d_stmt = "DROP TABLE IF EXISTS %s"%tableName 
 		stmt = "CREATE TABLE IF NOT EXISTS %s ("%tableName
 		# for each column, add an INT column if it is an ID, VARCHAR otherwise.		
 		for col in head:
@@ -64,7 +64,7 @@ for f in os.listdir(match_path):
 		stmt = stmt[:-1]+ ")"
 
 
-		cur.execute(d_stmt)
+		#cur.execute(d_stmt)
 		cur.execute(stmt)
 		
 		
@@ -81,21 +81,6 @@ for f in os.listdir(match_path):
 			batchData.append(tuple(row))
 			
 		cur.executemany(inStmt, batchData)
-
-		
-
-		
-
-
-
-
-
-
-
-
-
-
-
 
 if con:
 	con.close()
