@@ -64,7 +64,7 @@ mv $DATA_PATH/*Match*.zip $DATA_PATH/Match
 
 
 # MySQL inserts. Unzip files, dynamically generate SQL to import each contained csv.
-declare -a arr=("Conversion" "Standard")
+declare -a arr=("Rich" "Conversion" "Standard")
 for i in ${arr[@]}
 do
 	echo $i

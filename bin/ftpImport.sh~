@@ -6,10 +6,9 @@ LOG_PATH="../logs/"
 TMP_PATH="../tmp/"
 
 USER="tomb"
-HOST="184.105.184.30"
-PW="DW4mediatb"
-DB=`cat ../../pw/mysql`
-
+HOST="localhost"
+DB="DWA_SF_Cookie"
+PW=`cat ../../pw/mysql`
 
 # first, retrieve list of available files from server. 
 ftp -pid ftp.platform.mediamind.com > $LOG_PATH/transfer.log << EOF

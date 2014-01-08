@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+
+SQL_PATH="../SQL/"
+DATA_PATH="../downloaded/"
+LOG_PATH="../logs/"
+TMP_PATH="../tmp/"
+
+USER="tomb"
+HOST="localhost"
+DB="DWA_SF_Cookie"
+PW="DWA4mediatb"
+
+
+mysql -h$HOST -u$USER -p$PW $DB -e "SELECT DATE(EventDate), COUNT(*) FROM MM_Rich UNION ALL SELECT DATE(EventDate), COUNT(*) FROM MM_Rich_Copy" > rich_counts
+
+
+
