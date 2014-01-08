@@ -5,6 +5,9 @@ import MySQLdb as mdb
 import sys
 import os
 import re
+from warnings import filterwarnings
+
+filterwarnings('ignore', category = mdb.Warning)
 
 host = '184.105.184.30'
 user = 'tomb'
@@ -14,10 +17,17 @@ db = 'SF_Match'
 data_path="../downloaded/"
 match_path = data_path + "Match/"
 
+print "Updating Match tables..."
+
 # get db handle:
 try:
 	con = mdb.connect(host, user, pw, db)
 	cur = con.cursor()
+
+	con.set_character_set('utf8')
+	cur.execute('SET NAMES utf8;') 
+	cur.execute('SET CHARACTER SET utf8;')
+	cur.execute('SET character_set_connection=utf8;')
 
         
 except _mysql.Error, e:
@@ -34,7 +44,7 @@ for f in os.listdir(match_path):
 		tableName = re.sub("MM_CLD_Match_", "", f)
 		# Mediamind capitalizes its F's unpredictably
 		tableName = re.sub("Match[fF]ile.*", "", tableName) 
-		print "Updating %s match table"%tableName		
+
 
 		# open file, read file, decode file, split by newline.
 		data = re.sub('"', "",open(match_path+f).read().decode("utf-8-sig")).splitlines()
@@ -69,11 +79,8 @@ for f in os.listdir(match_path):
 			row = line.split(",")
 			#print row
 			batchData.append(tuple(row))
-			try:
-				cur.executemany(inStmt, [tuple(row)])	
-			except:
-				print row
-		#cur.executemany(inStmt, batchData)
+			
+		cur.executemany(inStmt, batchData)
 
 		
 
