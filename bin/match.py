@@ -6,13 +6,17 @@ import os
 import re
 
 data_path="../downloaded/"
+match_path = data_path + "Match/"
 
 
-for f in os.listdir(data_path+"Match/"):
+for f in os.listdir(match_path):
 	if re.search("^MM", f):
 		tableName = re.sub("MM_CLD_Match_", "", f)
 		print "intermediate = ", tableName
 		tableName = re.sub("Match[fF]ile.*", "", tableName) # Mediamind conveniently capitalizes its F's unpredictably
+
+		header = next(open(match_path + f))
+		print header.split(" ")
 
 
 		
