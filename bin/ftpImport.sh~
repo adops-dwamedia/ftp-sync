@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 
 SQL_PATH="../SQL/"
-DATA_PATH="../downloaded/"
+DATA_PATH="/usr/local/var/ftp_sync/downloaded/"
 LOG_PATH="../logs/"
-TMP_PATH="../tmp/"
+TMP_PATH="../var/"
 
 USER="tomb"
 HOST="localhost"
@@ -11,14 +11,15 @@ DB="DWA_SF_Cookie"
 PW=`cat ../../pw/mysql`
 
 # first, retrieve list of available files from server. 
-ftp -pid ftp.platform.mediamind.com > $LOG_PATH/transfer.log << EOF
+echo "retrieving list of files"
+ftp -pid ftp.platform.mediamind.com > $LOG_PATH/transfer.log 2>> $LOG_PATH/ftpErrors.log << EOF
 nlist . $TMP_PATH/oFile
 quit
 EOF
 
 
 # strip out extra formatting
-cat $TMP_PATH/oFile | grep 140103\.zip > $TMP_PATH/files.txt
+cat $TMP_PATH/oFile | grep \.zip > $TMP_PATH/files.txt
 #rm -f $TMP_PATH/oFile
 
 
@@ -36,35 +37,34 @@ while read l; do
 	# if filename is not in .downloaded, add to list of files to retrieve
 	if [ -z `cat $TMP_PATH/downloaded | grep $l` ] 
 	then
-		echo "retrieving {$l}"
+		#echo "retrieving {$l}"
 		echo "get $l $DATA_PATH/$l" >> $TMP_PATH/downloadCmds
 		echo $l >> $TMP_PATH/toDownload
 	fi
 	
 done < $TMP_PATH/files.txt
-echo "unzip commands gathered"
+echo "retrieving files"
 # retrieve files. 
-ftp -vpi ftp.platform.mediamind.com < $TMP_PATH/downloadCmds 2> $LOG_PATH/ftpErrors.log
 
-if [[ `cat $LOG_PATH/ftpErrors.log` != "" ]]
+ftp -vpi ftp.platform.mediamind.com < $TMP_PATH/downloadCmds 2>> $LOG_PATH/ftpErrors.log >> $LOG_PATH/ftpLog
+echo $?
+if [ "$?" -ne 0 ]
 then
 	echo "Errors detected in ftp process, exiting."
 	exit 
 fi
 
-#rm -f $TMP_PATH/downloadCmds
-cat $TMP_PATH/toDownload >> .downloaded
-
+# LOG filenames that were downloaded!
 
 # Import downloaded files to database. Separate Rich, Standard, and Conversion 
-mv $DATA_PATH/*Rich*.zip $DATA_PATH/Rich
-mv $DATA_PATH/*Standard*.zip $DATA_PATH/Standard
-mv $DATA_PATH/*Conversion*.zip $DATA_PATH/Conversion
-mv $DATA_PATH/*Match*.zip $DATA_PATH/Match
+mv $DATA_PATH/*Rich*.zip $DATA_PATH/Rich 2> $LOG_PATH/mv_log
+mv $DATA_PATH/*Standard*.zip $DATA_PATH/Standard 2> $LOG_PATH/mv_log
+mv $DATA_PATH/*Conversion*.zip $DATA_PATH/Conversion 2> $LOG_PATH/mv_log
+mv $DATA_PATH/*Match*.zip $DATA_PATH/Match 2> $LOG_PATH/mv_log
 
 
 # MySQL inserts. Unzip files, dynamically generate SQL to import each contained csv.
-declare -a arr=("Conversion" "Standard")
+declare -a arr=("Rich" "Conversion" "Standard")
 for i in ${arr[@]}
 do
 	echo $i
@@ -89,8 +89,22 @@ for f in $DATA_PATH/$i/*.zip; do
 	#rm -rf $TMP_PATH/unzip
 	mv $f $DATA_PATH/${i}/inSQL
 done
-
 done
 
+for f in $DATA_PATH/Match/*.zip; do	
+	filename=`echo $f | sed 's:.*/::'`
+	unzip -xu -d$DATA_PATH/Match/unzipped $f >>$LOG_PATH/unzip.log 2>> $LOG_PATH/unzipErrors.log
+	if [ "$?" -eq 0 ]
+		then 
+			rm $f
+			mysql -h$HOST -u$USER -p$PW $DB -e "INSERT IGNORE INTO import_log VALUE ('$filename', CURRENT_TIMESTAMP())"
+				
+	fi
+done
 
+python match.py
 
+if [ "$?" -eq 0 ]
+	then
+		rm $DATA_PATH/Match/unzipped/*.csv
+fi

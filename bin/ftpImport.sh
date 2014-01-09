@@ -87,7 +87,7 @@ for f in $DATA_PATH/$i/*.zip; do
 		
 	done
 	#rm -rf $TMP_PATH/unzip
-	mv $f $DATA_PATH/${i}/inSQL
+	mv $f $DATA_PATH/${i}/inSQL 2>> $LOG_DIR/mv_log
 done
 done
 
