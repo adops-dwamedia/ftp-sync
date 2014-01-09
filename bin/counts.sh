@@ -3,7 +3,7 @@
 SQL_PATH="../SQL/"
 DATA_PATH="../downloaded/"
 LOG_PATH="../logs/"
-TMP_PATH="../tmp/"
+TMP_PATH="../var/"
 
 USER="tomb"
 HOST="localhost"

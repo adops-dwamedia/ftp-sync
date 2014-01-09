@@ -47,7 +47,6 @@ echo "retrieving files"
 # retrieve files. 
 
 ftp -vpi ftp.platform.mediamind.com < $TMP_PATH/downloadCmds 2>> $LOG_PATH/ftpErrors.log >> $LOG_PATH/ftpLog
-echo $?
 if [ "$?" -ne 0 ]
 then
 	echo "Errors detected in ftp process, exiting."
@@ -64,30 +63,35 @@ mv $DATA_PATH/*Match*.zip $DATA_PATH/Match 2> $LOG_PATH/mv_log
 
 
 # MySQL inserts. Unzip files, dynamically generate SQL to import each contained csv.
+
+
+echo "inserting data into database"
 declare -a arr=("Rich" "Conversion" "Standard")
 for i in ${arr[@]}
 do
-	echo $i
+#	echo $i
 
 for f in $DATA_PATH/$i/*.zip; do
+	echo $f
 	filename=`echo $f | sed 's:.*/::'`
 	unzip -xu -d$TMP_PATH/unzip $f >$LOG_PATH/unzip.log 2> $LOG_PATH/unzipErrors.log
 	for gg in $TMP_PATH/unzip/*.csv; do
-		echo $gg
-		echo "started at:"
-		echo `date`
+#		echo $gg
+#		echo "started at:"
+#		echo `date`
 		sed -e "s@xxxxCSVFILExxxx@${gg}@g" $SQL_PATH/Load_${i}.sql > tmpSql.sql
 		cat tmpSql.sql | mysql -h$HOST -u$USER -p$PW $DB --local-infile # ADD ERROR CHECKING
 		if [ "$?" -eq 0 ]
+		
 			then
 				mysql -h$HOST -u$USER -p$PW $DB -e "INSERT IGNORE INTO import_log VALUE ('$filename', CURRENT_TIMESTAMP())"
 				rm tmpSql.sql
-				rm $gg
+				rm -f $gg
 		fi
 		
 	done
 	#rm -rf $TMP_PATH/unzip
-	mv $f $DATA_PATH/${i}/inSQL 2>> $LOG_DIR/mv_log
+	mv $f $DATA_PATH/${i}/inSQL 2>> $LOG_PATH/mv_log
 done
 done
 
@@ -106,5 +110,5 @@ python match.py
 
 if [ "$?" -eq 0 ]
 	then
-		rm $DATA_PATH/Match/unzipped/*.csv
+		rm -f $DATA_PATH/Match/unzipped/*.csv
 fi
