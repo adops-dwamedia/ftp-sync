@@ -18,7 +18,7 @@ EOF
 
 
 # strip out extra formatting
-cat $TMP_PATH/oFile | grep 140103\.zip > $TMP_PATH/files.txt
+cat $TMP_PATH/oFile | grep \.zip > $TMP_PATH/files.txt
 #rm -f $TMP_PATH/oFile
 
 
@@ -36,7 +36,7 @@ while read l; do
 	# if filename is not in .downloaded, add to list of files to retrieve
 	if [ -z `cat $TMP_PATH/downloaded | grep $l` ] 
 	then
-		echo "retrieving {$l}"
+		#echo "retrieving {$l}"
 		echo "get $l $DATA_PATH/$l" >> $TMP_PATH/downloadCmds
 		echo $l >> $TMP_PATH/toDownload
 	fi
@@ -44,6 +44,7 @@ while read l; do
 done < $TMP_PATH/files.txt
 echo "unzip commands gathered"
 # retrieve files. 
+
 ftp -vpi ftp.platform.mediamind.com < $TMP_PATH/downloadCmds 2> $LOG_PATH/ftpErrors.log
 
 if [[ `cat $LOG_PATH/ftpErrors.log` != "" ]]
@@ -52,9 +53,7 @@ then
 	exit 
 fi
 
-#rm -f $TMP_PATH/downloadCmds
-cat $TMP_PATH/toDownload >> .downloaded
-
+# LOG filenames that were downloaded!
 
 # Import downloaded files to database. Separate Rich, Standard, and Conversion 
 mv $DATA_PATH/*Rich*.zip $DATA_PATH/Rich
@@ -89,6 +88,8 @@ for f in $DATA_PATH/$i/*.zip; do
 	#rm -rf $TMP_PATH/unzip
 	mv $f $DATA_PATH/${i}/inSQL
 done
+
+python match.py
 
 done
 
