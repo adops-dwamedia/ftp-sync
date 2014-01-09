@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 
 SQL_PATH="../SQL/"
-DATA_PATH="../downloaded/"
+DATA_PATH="/usr/local/var/ftp_sync/downloaded/"
 LOG_PATH="../logs/"
-TMP_PATH="../tmp/"
+TMP_PATH="../var/"
 
 USER="tomb"
 HOST="localhost"
@@ -88,10 +88,16 @@ for f in $DATA_PATH/$i/*.zip; do
 	#rm -rf $TMP_PATH/unzip
 	mv $f $DATA_PATH/${i}/inSQL
 done
-
-python match.py
-
 done
 
+for f in $DATA_PATH/Match/; do
+	unzip -xu -d$DATA_PATH/Match/ >>$LOG_PATH/unzip.log 2>> $LOG_PATH/unzipErrors.log
+	if [ "$?" -eq 0 ]
+		then 
+			rm $f
+	fi
+done
+
+python match.py
 
 

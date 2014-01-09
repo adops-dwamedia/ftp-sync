@@ -9,12 +9,12 @@ from warnings import filterwarnings
 
 filterwarnings('ignore', category = mdb.Warning)
 
-host = '184.105.184.30'
+host = 'localhost'
 user = 'tomb'
 pw = 'DW4mediatb'
 db = 'SF_Match'
 
-data_path="../downloaded/"
+data_path="/usr/local/var/ftp_sync/downloaded/"
 match_path = data_path + "Match/"
 
 print "Updating Match tables..."
@@ -30,7 +30,7 @@ try:
 	cur.execute('SET character_set_connection=utf8;')
 
         
-except _mysql.Error, e:
+except mdb.Error, e:
 
 	print "Error %d: %s" % (e.args[0], e.args[1])
 	sys.exit(1)
