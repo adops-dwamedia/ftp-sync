@@ -11,7 +11,8 @@ DB="DWA_SF_Cookie"
 PW=`cat ../../pw/mysql`
 
 # first, retrieve list of available files from server. 
-ftp -pid ftp.platform.mediamind.com > $LOG_PATH/transfer.log << EOF
+echo "retrieving list of files"
+ftp -pid ftp.platform.mediamind.com > $LOG_PATH/transfer.log 2>> $LOG_PATH/ftpErrors.log << EOF
 nlist . $TMP_PATH/oFile
 quit
 EOF
@@ -42,12 +43,12 @@ while read l; do
 	fi
 	
 done < $TMP_PATH/files.txt
-echo "unzip commands gathered"
+echo "retrieving files"
 # retrieve files. 
 
-ftp -vpi ftp.platform.mediamind.com < $TMP_PATH/downloadCmds 2> $LOG_PATH/ftpErrors.log
-
-if [[ `cat $LOG_PATH/ftpErrors.log` != "" ]]
+ftp -vpi ftp.platform.mediamind.com < $TMP_PATH/downloadCmds 2>> $LOG_PATH/ftpErrors.log >> $LOG_PATH/ftpLog
+echo $?
+if [ "$?" -ne 0 ]
 then
 	echo "Errors detected in ftp process, exiting."
 	exit 
@@ -56,10 +57,10 @@ fi
 # LOG filenames that were downloaded!
 
 # Import downloaded files to database. Separate Rich, Standard, and Conversion 
-mv $DATA_PATH/*Rich*.zip $DATA_PATH/Rich
-mv $DATA_PATH/*Standard*.zip $DATA_PATH/Standard
-mv $DATA_PATH/*Conversion*.zip $DATA_PATH/Conversion
-mv $DATA_PATH/*Match*.zip $DATA_PATH/Match
+mv $DATA_PATH/*Rich*.zip $DATA_PATH/Rich 2> $LOG_PATH/mv_log
+mv $DATA_PATH/*Standard*.zip $DATA_PATH/Standard 2> $LOG_PATH/mv_log
+mv $DATA_PATH/*Conversion*.zip $DATA_PATH/Conversion 2> $LOG_PATH/mv_log
+mv $DATA_PATH/*Match*.zip $DATA_PATH/Match 2> $LOG_PATH/mv_log
 
 
 # MySQL inserts. Unzip files, dynamically generate SQL to import each contained csv.
