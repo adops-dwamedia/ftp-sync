@@ -15,7 +15,7 @@ pw = 'DW4mediatb'
 db = 'SF_Match'
 
 data_path="/usr/local/var/ftp_sync/downloaded/"
-match_path = data_path + "Match/"
+match_path = data_path + "Match/unzipped/"
 
 print "Updating Match tables..."
 
@@ -41,10 +41,11 @@ except mdb.Error, e:
 # This assumes that match files will not overlap ID's
 for f in os.listdir(match_path):
 	if re.search("^MM", f):
+		print "precursor = ", f
 		tableName = re.sub("MM_CLD_Match_", "", f)
 		# Mediamind capitalizes its F's unpredictably
 		tableName = re.sub("Match[fF]ile.*", "", tableName) 
-
+		print tableName
 
 		# open file, read file, decode file, split by newline.
 		data = re.sub('"', "",open(match_path+f).read().decode("utf-8-sig")).splitlines()

@@ -90,14 +90,20 @@ for f in $DATA_PATH/$i/*.zip; do
 done
 done
 
-for f in $DATA_PATH/Match/; do
-	unzip -xu -d$DATA_PATH/Match/ >>$LOG_PATH/unzip.log 2>> $LOG_PATH/unzipErrors.log
+for f in $DATA_PATH/Match/*.zip; do	
+	filename=`echo $f | sed 's:.*/::'`
+	unzip -xu -d$DATA_PATH/Match/unzipped $f >>$LOG_PATH/unzip.log 2>> $LOG_PATH/unzipErrors.log
 	if [ "$?" -eq 0 ]
 		then 
 			rm $f
+			mysql -h$HOST -u$USER -p$PW $DB -e "INSERT IGNORE INTO import_log VALUE ('$filename', CURRENT_TIMESTAMP())"
+				
 	fi
 done
 
 python match.py
 
-
+if [ "$?" -eq 0 ]
+	then
+		rm $DATA_PATH/Match/unzipped/*.csv
+fi
