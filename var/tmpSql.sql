@@ -1,5 +1,5 @@
 USE DWA_SF_Cookie;
-LOAD DATA LOCAL INFILE 'xxxxCSVFILExxxx'
+LOAD DATA LOCAL INFILE '/usr/local/ftp_sync/var//unzip/*.csv'
 into table DWA_SF_Cookie.MM_Standard_LOAD_Varchar
 fields terminated by ','
 #enclosed by '"'
@@ -12,7 +12,7 @@ ignore 1 lines
 
 SET autocommit=0;
 
-Insert ignore into MM_Standard
+Insert into MM_Standard
 (EventID, UserID, EventTypeID, 
 EventDate, 
 EntityID, PlacementID, SiteID, CampaignID, BrandID, AdvertiserID, AccountID, SearchAdID, AdGroupID, IP,CountryID, StateID, DMAID, CityID, ZipCode, AreaCode, BrowserCode, OSCode, Referrer, MobileDevice, MobileCarrier, AudienceID, ProductID, PCP)

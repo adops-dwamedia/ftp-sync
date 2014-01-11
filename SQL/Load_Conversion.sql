@@ -24,7 +24,7 @@ ignore 1 lines
 
 SET autocommit=0;
 
-Insert into MM_Conversion
+Insert IGNORE into MM_Conversion
 (
 UserID, ConversionID,
 ConversionDate,

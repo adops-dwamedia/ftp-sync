@@ -1,14 +1,15 @@
 #!/usr/bin/env bash
 
-SQL_PATH="../SQL/"
+HOME_PATH="/usr/local/ftp_sync/bin"
+SQL_PATH="/usr/local/ftp_sync/SQL/"
 DATA_PATH="/usr/local/var/ftp_sync/downloaded/"
-LOG_PATH="../logs/"
-TMP_PATH="../var/"
+LOG_PATH="/usr/local/ftp_sync/logs/"
+TMP_PATH="/usr/local/ftp_sync/var/"
 
 USER="tomb"
 HOST="localhost"
 DB="DWA_SF_Cookie"
-PW=`cat ../../pw/mysql`
+PW=`cat /usr/local/pw/mysql`
 
 # first, retrieve list of available files from server. 
 echo "retrieving list of files"
@@ -79,13 +80,13 @@ for f in $DATA_PATH/$i/*.zip; do
 #		echo $gg
 #		echo "started at:"
 #		echo `date`
-		sed -e "s@xxxxCSVFILExxxx@${gg}@g" $SQL_PATH/Load_${i}.sql > tmpSql.sql
-		cat tmpSql.sql | mysql -h$HOST -u$USER -p$PW $DB --local-infile # ADD ERROR CHECKING
+		sed -e "s@xxxxCSVFILExxxx@${gg}@g" $SQL_PATH/Load_${i}.sql > $TMP_PATH/tmpSql.sql
+		cat $TMP_PATH/tmpSql.sql | mysql -h$HOST -u$USER -p$PW $DB --local-infile # ADD ERROR CHECKING
 		if [ "$?" -eq 0 ]
 		
 			then
 				mysql -h$HOST -u$USER -p$PW $DB -e "INSERT IGNORE INTO import_log VALUE ('$filename', CURRENT_TIMESTAMP())"
-				rm tmpSql.sql
+				rm $TMP_PATH/tmpSql.sql
 				rm -f $gg
 		fi
 		
@@ -106,7 +107,7 @@ for f in $DATA_PATH/Match/*.zip; do
 	fi
 done
 
-python match.py
+python $HOME_PATH/match.py
 
 if [ "$?" -eq 0 ]
 	then

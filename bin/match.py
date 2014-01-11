@@ -56,7 +56,7 @@ for f in os.listdir(match_path):
 			# detect ID's, use as primary keys.
 			if re.match("ID", col):
 				
-				stmt += "%s INT PRIMARY KEY,"%col
+				stmt += "%s INT ,"%col
 			else:
 				stmt += "%s VARCHAR(255),"%col
 		# get rid of last comma, add ending parens

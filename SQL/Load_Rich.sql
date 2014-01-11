@@ -15,7 +15,7 @@ ignore 1 lines
 
 SET autocommit=0;
 
-Insert into MM_Rich
+Insert IGNORE into MM_Rich
 (
 EventID, UserID, EventTypeID, InteractionID, InteractionDuration, VideoAssetID,
 InteractionDate,
