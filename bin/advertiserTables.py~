@@ -37,7 +37,7 @@ for a in advert:
 	# check if table exists:
 	cur.execute("SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME LIKE '%s'"%tableName);
 	res = cur.fetchall()
-
+	print len(res)
 	if len(res) == 0:
 		print "asdf"
 #		stmt0 = "DROP TABLE IF EXISTS MM_Standard_P.%s"%tableName
