@@ -2,9 +2,10 @@
 #mysql -utomb -pDW4mediatb DWA_SF_Cookie -e "ALTER IGNORE TABLE MM_Standard ADD UNIQUE INDEX(UserID, EventID, EventDate);"
 
 #mysql -utomb -pDW4mediatb DWA_SF_Cookie -e "ALTER IGNORE TABLE MM_Standard ENGINE InnoDB"
-bash /usr/local/ftp_sync/bin/ftpImport.sh
+#bash /usr/local/ftp_sync/bin/ftpImport.sh
 #mysql -utomb -pDW4mediatb DWA_SF_Cookie -e "DROP TABLE IF EXISTS MM_Standard_P"
-mysql -utomb -pDW4mediatb DWA_SF_Cookie -e "CREATE TABLE MM_Standard_P AS SELECT UserID, EventID, EventTypeID, EventDate, CampaignID, SiteID, PlacementID, IP, AdvertiserID FROM MM_Standard PRIMARY KEY(EventID);"
+mysql -utomb -pDW4mediatb DWA_SF_Cookie -e "DROP TABLE IF EXISTS MM_Standard_P;CREATE TABLE MM_Standard_P AS SELECT UserID, EventID, EventTypeID, EventDate, CampaignID, SiteID, PlacementID, IP, AdvertiserID FROM MM_Standard WHERE 1=0"
+mysql -utomb -pDW4mediatb DWA_SF_Cookie -e "ALTER TABLE MM_Standard_P ADD PRIMARY KEY (UserID, EventID, EventTypeID, EventDate, CampaignID, SiteID, PlacementID, IP, AdvertiserID)"
 mysql -utomb -pDW4mediatb DWA_SF_Cookie -e "ALTER TABLE MM_Standard_P PARTITION BY LIST COLUMNS (AdvertiserID)(
 PARTITION p01 VALUES IN (59353),
 PARTITION p02 VALUES IN (60687),

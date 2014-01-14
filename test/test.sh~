@@ -1,3 +1,0 @@
-mkdir ./asdf
-TEST_PATH="./asdf/"
-touch $TESTPATH/test
