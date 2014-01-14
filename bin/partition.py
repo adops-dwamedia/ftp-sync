@@ -7,6 +7,10 @@ import os
 import re
 from warnings import filterwarnings
 
+# Partition maintenance file. Partition field and type are hard coded. Checks if M_Standard_P table is partitioned. 
+#If it is, make sure all unique values of AdvertiserID are included. IF not, partition table
+
+
 filterwarnings('ignore', category = mdb.Warning)
 
 host = 'localhost'
