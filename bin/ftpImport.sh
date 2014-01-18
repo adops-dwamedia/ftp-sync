@@ -101,7 +101,7 @@ for f in $DATA_PATH/Match/*.zip; do
 	unzip -xu -d$DATA_PATH/Match/unzipped $f >>$LOG_PATH/unzip.log 2>> $LOG_PATH/unzipErrors.log
 	if [ "$?" -eq 0 ]
 		then 
-			rm $f
+			#rm $f
 			mysql -h$HOST -u$USER -p$PW $DB -e "INSERT IGNORE INTO import_log VALUE ('$filename', CURRENT_TIMESTAMP())"
 				
 	fi

@@ -5,6 +5,7 @@ import MySQLdb as mdb
 import sys
 import os
 import re
+import datetime
 from warnings import filterwarnings
 
 filterwarnings('ignore', category = mdb.Warning)
@@ -14,10 +15,7 @@ user = 'tomb'
 pw = 'DW4mediatb'
 db = 'SF_Match'
 
-data_path="/usr/local/var/ftp_sync/downloaded/"
-match_path = data_path + "Match/unzipped/"
-
-print "Updating Match tables..."
+log_path="/usr/local/ftp_sync/logs"
 
 # get db handle:
 try:
@@ -35,52 +33,35 @@ except mdb.Error, e:
 	print "Error %d: %s" % (e.args[0], e.args[1])
 	sys.exit(1)
 
+cur.execute("SELECT AdvertiserName, AdvertiserID FROM Advertisers")
+advert = cur.fetchall()
+for a in advert:
+	tableName = "DWA_SF_Cookie."+a[0].replace(" ", "_")+"_Std"
+	# check if table exists:
+	cur.execute("SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME LIKE '%s'"%tableName);
+	res = cur.fetchall()
 
-# for each file, extract SQL table name from file name, 
-# obtain schema from first line of file, and create/insert into table as needed.
-# This assumes that match files will not overlap ID's
-for f in os.listdir(match_path):
-	if re.search("^MM", f):
-		tableName = re.sub("MM_CLD_Match_", "", f)
-		# Mediamind capitalizes its F's unpredictably
-		tableName = re.sub("Match[fF]ile.*", "", tableName) 
-		
-		# open file, read file, decode file, split by newline.
-		data = re.sub('"', "",open(match_path+f).read().decode("utf-8-sig")).splitlines()
-		head = data[0].split(",")
-		#d_stmt = "DROP TABLE IF EXISTS %s"%tableName 
-		stmt = "CREATE TABLE IF NOT EXISTS %s ("%tableName
-		# for each column, add an INT column if it is an ID, VARCHAR otherwise.		
-		for col in head:
-			col = re.sub('"', "", col) # strip quotes
-			# detect ID's, use as primary keys.
-			if re.match("ID", col):
-				
-				stmt += "%s INT ,"%col
-			else:
-				stmt += "%s VARCHAR(255),"%col
-		# get rid of last comma, add ending parens
-		stmt = stmt[:-1]+ ")"
+	if True:#len(res) == 0:
+		print "Creating table %s"%tableName
+		stmt0 = "DROP TABLE IF EXISTS %s"%tableName
+		stmt1 = "CREATE TABLE IF NOT EXISTS %s"%tableName + " AS SELECT UserID, EventID, EventTypeID, STR_TO_DATE(EventDate, '%m/%d/%Y %h:%i:%s %p') AS EventDate, CampaignID, SiteID, PlacementID, IP, AdvertiserID FROM DWA_SF_Cookie.MM_Standard WHERE 1=0"
+		stmt2 = "ALTER TABLE %s ADD PRIMARY KEY(EventID)"%tableName
+		stmt3 = "ALTER TABLE %s ADD INDEX (UserID)"%tableName
+		stmt4 = "ALTER TABLE %s ADD INDEX (EventDate)"%tableName
+		cur.execute(stmt0)
+		cur.execute(stmt1)
+		cur.execute(stmt2)
+		cur.execute(stmt3)
+		cur.execute(stmt4)
+	
+	stmt5 = "INSERT IGNORE INTO %s"%tableName + " SELECT UserID, EventID, EventTypeID, STR_TO_DATE(EventDate, '%m/%d/%Y %h:%i:%s %p'), CampaignID, SiteID, PlacementID, IP, AdvertiserID FROM DWA_SF_Cookie.MM_Standard WHERE AdvertiserID ="+" %s"%a[1]
+	print stmt5
+	os.system("echo %s updated at %s>> %s/adTables.log"%(tableName, datetime.datetime.now(), log_path))
+	cur.execute(stmt5)
 
 
-		#cur.execute(d_stmt)
-		cur.execute(stmt)
-		
-		
-		# with table created, insert data. With ID as primary, 
-		# INSERT IGNORE ensures no duplication.
-		inStmt = "INSERT IGNORE INTO %s VALUES ("%tableName
-		inStmt += "%s,"*len(head)
-		inStmt = inStmt[:-1] + ")"
-		
-		batchData = []
-		for line in data[1:]:
-			row = line.split(",")
-			#print row
-			batchData.append(tuple(row))
-			
-		cur.executemany(inStmt, batchData)
 
 if con:
 	con.close()
+
 
