@@ -49,6 +49,11 @@ for a in advert:
 		stmt3 = "ALTER TABLE %s ADD INDEX (UserID)"%tableName
 		stmt4 = "ALTER TABLE %s ADD INDEX (EventDate)"%tableName
 		cur.execute(stmt0)
+	tableName = a[0].replace(" ", "_")+"_Standard"
+	# check if table exists:
+	cur.execute("SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME LIKE '%s'"%tableName);
+	res = cur.fetchall()
+
 	if len(res) == 0:
 		print "asdf"
 #		stmt0 = "DROP TABLE IF EXISTS MM_Standard_P.%s"%tableName

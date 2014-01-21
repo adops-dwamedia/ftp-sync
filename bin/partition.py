@@ -49,11 +49,8 @@ res = cur.fetchall()
 #print res
 partitions = res[0][3]
 parts_ls = []
-<<<<<<< HEAD
 #print "current partitions = ", partitions
 #print advert_ls
-=======
->>>>>>> a904d90b2e1c9ce80562f669147c5dcc3aa06774
 if partitions is not None:
 	for p in partitions.split(","):
 		parts_ls.append(p.replace("p",""))

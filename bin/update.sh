@@ -4,4 +4,8 @@
 
 #mysql -utomb -pDW4mediatb DWA_SF_Cookie -e "ALTER IGNORE TABLE MM_Standard ENGINE InnoDB"
 #bash /usr/local/ftp_sync/bin/ftpImportNoRM.sh
+
+
+
+echo "script complete"
 		
