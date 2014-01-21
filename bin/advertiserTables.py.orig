@@ -15,8 +15,11 @@ user = 'tomb'
 pw = 'DW4mediatb'
 db = 'SF_Match'
 
+<<<<<<< HEAD
 log_path="/usr/local/ftp_sync/logs"
 
+=======
+>>>>>>> a904d90b2e1c9ce80562f669147c5dcc3aa06774
 # get db handle:
 try:
 	con = mdb.connect(host, user, pw, db)
@@ -36,11 +39,16 @@ except mdb.Error, e:
 cur.execute("SELECT AdvertiserName, AdvertiserID FROM Advertisers")
 advert = cur.fetchall()
 for a in advert:
-	tableName0=a[0].replace(" ", "_")+"_Std"
-	tableName="DWA_SF_Cookie" +  tableName0
+<<<<<<< HEAD
+	tableName = "DWA_SF_Cookie."+a[0].replace(" ", "_")+"_Std"
+=======
+	tableName = a[0].replace(" ", "_")+"_Standard"
+>>>>>>> a904d90b2e1c9ce80562f669147c5dcc3aa06774
 	# check if table exists:
-	cur.execute("SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME LIKE '%s'"%tableName0);
+	cur.execute("SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME LIKE '%s'"%tableName);
 	res = cur.fetchall()
+
+<<<<<<< HEAD
 	if True:#len(res) == 0:
 		print "Creating table %s"%tableName
 		stmt0 = "DROP TABLE IF EXISTS %s"%tableName
@@ -49,6 +57,7 @@ for a in advert:
 		stmt3 = "ALTER TABLE %s ADD INDEX (UserID)"%tableName
 		stmt4 = "ALTER TABLE %s ADD INDEX (EventDate)"%tableName
 		cur.execute(stmt0)
+=======
 	if len(res) == 0:
 		print "asdf"
 #		stmt0 = "DROP TABLE IF EXISTS MM_Standard_P.%s"%tableName
@@ -57,17 +66,21 @@ for a in advert:
 		stmt3 = "ALTER TABLE MM_Standard_P.%s ADD INDEX (UserID)"%tableName
 		stmt4 = "ALTER TABLE MM_Standard_P.%s ADD INDEX (EventDate)"%tableName
 	#	cur.execute(stmt0)
+>>>>>>> a904d90b2e1c9ce80562f669147c5dcc3aa06774
 		cur.execute(stmt1)
 		cur.execute(stmt2)
 		cur.execute(stmt3)
 		cur.execute(stmt4)
 	
+<<<<<<< HEAD
 	stmt5 = "INSERT IGNORE INTO %s"%tableName + " SELECT UserID, EventID, EventTypeID, STR_TO_DATE(EventDate, '%m/%d/%Y %h:%i:%s %p'), CampaignID, SiteID, PlacementID, IP, AdvertiserID FROM DWA_SF_Cookie.MM_Standard WHERE AdvertiserID ="+" %s"%a[1]
 	print stmt5
 	os.system("echo %s updated at %s>> %s/adTables.log"%(tableName, datetime.datetime.now(), log_path))
+=======
 	stmt5 = "INSERT IGNORE INTO MM_Standard_P.%s SELECT UserID, EventID, EventTypeID, EventDate, CampaignID, SiteID, PlacementID, IP, AdvertiserID FROM DWA_SF_Cookie.MM_Standard_P WHERE AdvertiserID = %s"%(tableName, a[1])
 
 
+>>>>>>> a904d90b2e1c9ce80562f669147c5dcc3aa06774
 	cur.execute(stmt5)
 
 
