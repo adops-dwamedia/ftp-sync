@@ -7,7 +7,7 @@ import os
 import re
 import datetime
 from warnings import filterwarnings
-
+print "beginning update"
 filterwarnings('ignore', category = mdb.Warning)
 
 os.system("bash /usr/local/ftp_sync/bin/ftpImport.sh")
