@@ -66,6 +66,7 @@ mv $DATA_PATH/*Match*.zip $DATA_PATH/Match 2> $LOG_PATH/mv_log
 # MySQL inserts. Unzip files, dynamically generate SQL to import each contained csv.
 
 
+
 echo "inserting data into database"
 declare -a arr=("Rich" "Conversion" "Standard")
 for i in ${arr[@]}
@@ -75,33 +76,34 @@ do
 for f in $DATA_PATH/$i/*.zip; do
 	echo $f
 	filename=`echo $f | sed 's:.*/::'`
-	unzip -xu -d$TMP_PATH/unzip $f >$LOG_PATH/unzip.log 2> $LOG_PATH/unzipErrors.log
-	for gg in $TMP_PATH/unzip/*.csv; do
-#		echo $gg
-#		echo "started at:"
-#		echo `date`
-		sed -e "s@xxxxCSVFILExxxx@${gg}@g" $SQL_PATH/Load_${i}.sql > $TMP_PATH/tmpSql.sql
-		cat $TMP_PATH/tmpSql.sql | mysql -h$HOST -u$USER -p$PW $DB --local-infile # ADD ERROR CHECKING
+	unzip -xu -d$TMP_PATH/unzip/$i $f >$LOG_PATH/unzip.log 2> $LOG_PATH/unzipErrors.log
+	for gg in $TMP_PATH/unzip/$i/*.csv; do
+		echo $gg
+		echo "started at:"
+		echo `date`
+		mv $gg MM_$i
+		mysqlimport -u$USER -p$PW --local --ignore-lines=1 --ignore --fields-terminated-by="," --lines-terminated-by="\n" $DB MM_$i
 		if [ "$?" -eq 0 ]
 		
 			then
 				mysql -h$HOST -u$USER -p$PW $DB -e "INSERT IGNORE INTO import_log VALUE ('$filename', CURRENT_TIMESTAMP())"
-				rm $TMP_PATH/tmpSql.sql
-				rm -f $gg
+				#rm $TMP_PATH/tmpSql.sql
+				rm -f MM_$i
+#				mv $gg $TMP_PATH/unzip/$i/inSQL
 		fi
 		
 	done
-	#rm -rf $TMP_PATH/unzip
+	##rm -rf $TMP_PATH/unzip
 	mv $f $DATA_PATH/${i}/inSQL 2>> $LOG_PATH/mv_log
 done
 done
-
+exit
 for f in $DATA_PATH/Match/*.zip; do	
 	filename=`echo $f | sed 's:.*/::'`
 	unzip -xu -d$DATA_PATH/Match/unzipped $f >>$LOG_PATH/unzip.log 2>> $LOG_PATH/unzipErrors.log
 	if [ "$?" -eq 0 ]
 		then 
-			#rm $f
+			##rm $f
 			mysql -h$HOST -u$USER -p$PW $DB -e "INSERT IGNORE INTO import_log VALUE ('$filename', CURRENT_TIMESTAMP())"
 				
 	fi
@@ -111,5 +113,6 @@ python $HOME_PATH/match.py
 
 if [ "$?" -eq 0 ]
 	then
-		rm -f $DATA_PATH/Match/unzipped/*.csv
+	echo "errors detected in match file creation"
+		#rm -f $DATA_PATH/Match/unzipped/*.csv
 fi
