@@ -19,8 +19,8 @@ quit
 EOF
 
 # Test LINE - limit to one day.
-cat ofile | grep 140120 > ofile2
-cat ofile2 > ofile
+#cat ofile | grep 140120 > ofile2
+#cat ofile2 > ofile
 # END Test
 
 # strip out extra formatting
