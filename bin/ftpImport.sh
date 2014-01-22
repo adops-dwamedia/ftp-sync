@@ -18,6 +18,10 @@ nlist . $TMP_PATH/oFile
 quit
 EOF
 
+# Test LINE - limit to one day.
+cat ofile | grep 140120 > ofile2
+cat ofile2 > ofile
+# END Test
 
 # strip out extra formatting
 cat $TMP_PATH/oFile | grep \.zip > $TMP_PATH/files.txt
@@ -81,19 +85,27 @@ for f in $DATA_PATH/$i/*.zip; do
 		echo $gg
 		echo "started at:"
 		echo `date`
-		mv $gg MM_$i
-		mysqlimport -u$USER -p$PW --local --ignore-lines=1 --ignore --fields-terminated-by="," --lines-terminated-by="\n" $DB MM_$i
+		
+		{}
+		if [ "$i"="Standard" ]
+		then
+			mv $gg MM_$i_tmp
+			mysqlimport -u$USER -p$PW --local --ignore-lines=1 --ignore --fields-terminated-by="," --lines-terminated-by="\n" $DB MM_$i_tmp
+		else
+			mv $gg MM_$i
+			mysqlimport -u$USER -p$PW --local --ignore-lines=1 --ignore --fields-terminated-by="," --lines-terminated-by="\n" $DB MM_$i
+		fi
 		if [ "$?" -eq 0 ]
 		
 			then
 				mysql -h$HOST -u$USER -p$PW $DB -e "INSERT IGNORE INTO import_log VALUE ('$filename', CURRENT_TIMESTAMP())"
-				#rm $TMP_PATH/tmpSql.sql
 				rm -f MM_$i
-#				mv $gg $TMP_PATH/unzip/$i/inSQL
+				rm -f MM_$i_tmp				
+
 		fi
-		
+
 	done
-	##rm -rf $TMP_PATH/unzip
+
 	mv $f $DATA_PATH/${i}/inSQL 2>> $LOG_PATH/mv_log
 done
 done
@@ -109,7 +121,7 @@ for f in $DATA_PATH/Match/*.zip; do
 	fi
 done
 
-python $HOME_PATH/match.py
+
 
 if [ "$?" -eq 0 ]
 	then

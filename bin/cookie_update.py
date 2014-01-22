@@ -10,6 +10,10 @@ from warnings import filterwarnings
 
 filterwarnings('ignore', category = mdb.Warning)
 
+os.system("bash /usr/local/ftp_sync/bin/ftpImport.sh")
+
+os.system("python /usr/local/ftp_sync/bin/match.py")
+
 host = 'localhost'
 user = 'tomb'
 pw = 'DW4mediatb'
