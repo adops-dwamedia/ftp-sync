@@ -80,13 +80,13 @@ do
 for f in $DATA_PATH/$i/*.zip; do
 	echo $f
 	filename=`echo $f | sed 's:.*/::'`
-	unzip -xu -d$TMP_PATH/unzip/$i $f >$LOG_PATH/unzip.log 2> $LOG_PATH/unzipErrors.log
+	unzip -xu -d $TMP_PATH/unzip/$i $f >$LOG_PATH/unzip.log 2> $LOG_PATH/unzipErrors.log
 	for gg in $TMP_PATH/unzip/$i/*.csv; do
 		echo $gg
 		echo "started at:"
 		echo `date`
 		
-		{}
+		
 		if [ "$i"="Standard" ]
 		then
 			mv $gg MM_$i_tmp
