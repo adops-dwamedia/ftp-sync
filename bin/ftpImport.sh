@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 
+echo "beginning ftpImport.sh"
 HOME_PATH="/usr/local/ftp_sync/bin"
 SQL_PATH="/usr/local/ftp_sync/SQL/"
 DATA_PATH="/usr/local/var/ftp_sync/downloaded/"
@@ -51,7 +52,7 @@ done < $TMP_PATH/files.txt
 echo "retrieving files"
 # retrieve files. 
 
-ftp -vpi ftp.platform.mediamind.com < $TMP_PATH/downloadCmds 2>> $LOG_PATH/ftpErrors.log >> $LOG_PATH/ftpLog
+#ftp -vpi ftp.platform.mediamind.com < $TMP_PATH/downloadCmds 2>> $LOG_PATH/ftpErrors.log >> $LOG_PATH/ftpLog
 if [ "$?" -ne 0 ]
 then
 	echo "Errors detected in ftp process, exiting."
@@ -89,8 +90,11 @@ for f in $DATA_PATH/$i/*.zip; do
 		
 		if [ "$i"="Standard" ]
 		then
-			mv $gg MM_$i_tmp
-			mysqlimport -u$USER -p$PW --local --ignore-lines=1 --ignore --fields-terminated-by="," --lines-terminated-by="\n" $DB MM_$i_tmp
+			echo "standard loop reached"
+			tmpString=_tmp
+			echo MM_$i$tmpString
+			mv $gg MM_$i$tmpString
+			mysqlimport -u$USER -p$PW --local --ignore-lines=1 --ignore --fields-terminated-by="," --lines-terminated-by="\n" $DB MM_$i$tmpString
 		else
 			mv $gg MM_$i
 			mysqlimport -u$USER -p$PW --local --ignore-lines=1 --ignore --fields-terminated-by="," --lines-terminated-by="\n" $DB MM_$i
@@ -100,7 +104,7 @@ for f in $DATA_PATH/$i/*.zip; do
 			then
 				mysql -h$HOST -u$USER -p$PW $DB -e "INSERT IGNORE INTO import_log VALUE ('$filename', CURRENT_TIMESTAMP())"
 				rm -f MM_$i
-				rm -f MM_$i_tmp				
+				rm -f MM_$i$tmpString				
 
 		fi
 
@@ -128,3 +132,4 @@ if [ "$?" -eq 0 ]
 	echo "errors detected in match file creation"
 		#rm -f $DATA_PATH/Match/unzipped/*.csv
 fi
+echo "ftpImport.sh complete"
