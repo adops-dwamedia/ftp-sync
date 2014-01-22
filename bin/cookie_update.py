@@ -10,9 +10,9 @@ from warnings import filterwarnings
 print "beginning update"
 filterwarnings('ignore', category = mdb.Warning)
 
-#os.system("bash /usr/local/ftp_sync/bin/ftpImport.sh")
+os.system("bash /usr/local/ftp_sync/bin/ftpImport.sh")
 
-#os.system("python /usr/local/ftp_sync/bin/match.py")
+os.system("python /usr/local/ftp_sync/bin/match.py")
 
 host = 'localhost'
 user = 'tomb'
@@ -25,8 +25,8 @@ log_path="/usr/local/ftp_sync/logs"
 try:
 	con = mdb.connect(host, user, pw, db)
 	cur = con.cursor()
-
 	con.set_character_set('utf8')
+	con.autocommit(True)
 	cur.execute('SET NAMES utf8;') 
 	cur.execute('SET CHARACTER SET utf8;')
 	cur.execute('SET character_set_connection=utf8;')
@@ -59,20 +59,23 @@ for a in advert:
 		cur.execute(stmt4)
 
 	print "updating %s"%tableName	
-	stmt5 = "INSERT IGNORE INTO %s"%tableName + " SELECT UserID, EventID, EventTypeID, STR_TO_DATE(EventDate, '%m/%d/%Y %h:%i:%s %p'), CampaignID, SiteID, PlacementID, IP, AdvertiserID FROM DWA_SF_Cookie.MM_Standard_tmp WHERE AdvertiserID ="+" %s"%a[1]
+	stmt5 = "INSERT INTO %s"%tableName + " (SELECT UserID, EventID, EventTypeID, STR_TO_DATE(EventDate, '%m/%d/%Y %h:%i:%s %p'), CampaignID, SiteID, PlacementID, IP, AdvertiserID FROM DWA_SF_Cookie.MM_Standard_tmp WHERE AdvertiserID ="+" %s"%a[1] + ") ON DUPLICATE KEY UPDATE EventID = Values(EventID)"
 	print stmt5
 	os.system("echo %s update begun at %s>> %s/adTables.log"%(tableName, datetime.datetime.now(), log_path))
 	cur.execute(stmt5)
 	os.system("echo %s update completed at %s>> %s/adTables.log"%(tableName, datetime.datetime.now(), log_path))
 	
 cur.execute("INSERT INTO MM_Standard SELECT * FROM MM_Standard_tmp")
-#cur.execute("TRUNCATE  MM_Standard_tmp")	
+
+
+
+cur.execute("TRUNCATE  MM_Standard_tmp")	
 
 
 
 
 
-
+con.commit()
 
 if con:
 	con.close()
