@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import MySQLdb as mdb
+import subprocess
 import sys
 import os
 import re
@@ -16,9 +17,9 @@ log_path="/usr/local/ftp_sync/logs/"
 tmp_path="/usr/local/ftp_sync/var/"
 
 user="tomb"
-host="10.0.101.15"
+host="localhost"
 db="DWA_SF_Cookie"
-pw=os.popen('/usr/local/pw/mysql').read()
+pw='DW4mediatb'
 
 
 # connect to db
@@ -37,38 +38,50 @@ except mdb.Error, e:
 	print "Error %d: %s" % (e.args[0], e.args[1])
 	sys.exit(1)
 
-sys.ext()
 
 
 def get_ftp_commands():
 
 # checks import_log table and returns two arrays: one with ftp commands and one with the
 # list of files to be downloaded.
-	
+	#retrieve list of files available
 	print "retrieving list of files"
-	os.system("""ftp -pid ftp.platform.mediamind.com > $log_path/transfer.log 2>> $log_path/ftpErrors.log << EOF
-	nlist . $tmp_path/oFile
+	file_ls_raw = subprocess.check_output("""ftp -pid ftp.platform.mediamind.com  << EOF
+	nlist 
 	quit
-	EOF""")
- 	return
+	EOF""", shell=True).split("\n")
+	file_ls = []
+	for i in range(len(file_ls_raw)):
+		if file_ls_raw[i][-3:] == "zip":
+			file_ls.append(file_ls_raw[i])
+
+	#retrieve list of files in db, remove files already imported
+	cur.execute("SELECT DISTINCT fileName FROM import_log")
+	for f in cur.fetchall():
+		if f[0] in file_ls: file_ls.remove(f[0])
+	
+
+	ftp_cmds = ""
+	for f in file_ls:
+		ftp_cmds += "get %s %s/%s\n"%(f, data_path, f)
+		print ftp_cmds 	
+	return file_ls, ftp_cmds
  	
+	 
+(file_ls,ftp_cmds) = get_ftp_commands()
  
-get_ftp_commnds()
+ 
+ 
+def get_ftp_data(ftp_cmds):
+	print ftp_cmds
+	os.system("echo %s > %s/downloadCmds"%(ftp_cmds, tmp_path))
+	os.system("echo 'starting ftp import process at '`date`")
+	os.system("ftp -vpi ftp.platform.mediamind.com < %s/downloadCmds 2>> %s/ftp.err 1>> %s/ftp.log"%(tmp_path, log_path, log_path))
+	return
+get_ftp_data(ftp_cmds)
+
 '''
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
-# def get_ftp_data()
+"ftp -vpi ftp.platform.mediamind.com < $TMP_PATH/downloadCmds 2>> $LOG_PATH/ftpErrors.log >> $LOG_PATH/ftpLog
 # def insert_csv()
 # def update_advertiser_tables()
 # def update_match()
