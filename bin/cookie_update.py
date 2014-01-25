@@ -64,22 +64,67 @@ def get_ftp_commands():
 	ftp_cmds = ""
 	for f in file_ls:
 		ftp_cmds += "get %s %s/%s\n"%(f, data_path, f)
-		print ftp_cmds 	
+#		print ftp_cmds 	
 	return file_ls, ftp_cmds
  	
 	 
-(file_ls,ftp_cmds) = get_ftp_commands()
+#(file_ls,ftp_cmds) = get_ftp_commands()
  
  
  
 def get_ftp_data(ftp_cmds):
-	print ftp_cmds
-	os.system("echo %s > %s/downloadCmds"%(ftp_cmds, tmp_path))
+#	print ftp_cmds
+	download_cmd_file = open ("%s/downloadCmds"%tmp_path, "w")
+	download_cmd_file.write(ftp_cmds)
 	os.system("echo 'starting ftp import process at '`date`")
-	os.system("ftp -vpi ftp.platform.mediamind.com < %s/downloadCmds 2>> %s/ftp.err 1>> %s/ftp.log"%(tmp_path, log_path, log_path))
+	#ftp_import = "ftp -vpi ftp.platform.mediamind.com < %s/downloadCmds 2>> %s/ftp.err 1>> %s/ftp.log"%(tmp_path, log_path, log_path)
+	
+	ftp_import = "ftp -vpi ftp.platform.mediamind.com < %s/downloadCmds "%tmp_path
+#	print ftp_import
+	subprocess.Popen(['ftp', '-pvi', 'ftp.platform.mediamind.com'], stdin=download_cmd_file)	
 	return
-get_ftp_data(ftp_cmds)
+#get_ftp_data(ftp_cmds)
 
+def create_Ad_Tables():
+	cur.execute("SELECT AdvertiserName, AdvertiserID FROM SF_Match.Advertisers")
+	advert = cur.fetchall()
+	for a in advert:
+		print a[0], a[1]
+		tableName0=a[0].replace(" ", "_")+"_Std"
+		tableName="DWA_SF_Cookie." +  tableName0
+		# check if table exists:
+		cur.execute("SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME LIKE '%s'"%tableName0);
+		res = cur.fetchall()
+		if len(res) == 0:
+			print "Creating table %s"%tableName
+			stmt1 = "CREATE TABLE IF NOT EXISTS %s"%tableName + " AS SELECT UserID, EventID, EventTypeID, STR_TO_DATE(EventDate, '%m/%d/%Y %h:%i:%s %p') AS EventDate, CampaignID, SiteID, PlacementID, IP, AdvertiserID FROM DWA_SF_Cookie.MM_Standard_tmp WHERE 1=0"
+			stmt2 = "ALTER TABLE %s ADD PRIMARY KEY(EventID)"%tableName
+			stmt3 = "ALTER TABLE %s ADD INDEX (UserID)"%tableName
+			stmt4 = "ALTER TABLE %s ADD INDEX (EventDate)"%tableName
+	
+			cur.execute(stmt1)
+			cur.execute(stmt2)
+			cur.execute(stmt3)
+			cur.execute(stmt4)
+
+
+
+
+create_Ad_Tables
+
+
+
+
+def insert_csv(file_name, target_table, standard_table = False):
+	mv_cmd = "mv %s %s"%(file_name, tmp_path+"/"+target_table)
+	os.system(mv_cmd)
+	print mv_cmd
+	os.system("mysqlimport -u%s -p%s --local --ignore-lines=1 --ignore --fields-terminated-by=\",\" --lines-terminated-by=\"\n\" %s %s"%(user, pw, db, tmp_path+ "/" +target_table))
+	if not standard_table:
+		return 	
+	else:
+	return
+insert_csv("/usr/local/var/ftp_sync/downloaded/Standard/test.csv", "MM_Standard_tmp", True)
 '''
 "ftp -vpi ftp.platform.mediamind.com < $TMP_PATH/downloadCmds 2>> $LOG_PATH/ftpErrors.log >> $LOG_PATH/ftpLog
 # def insert_csv()
