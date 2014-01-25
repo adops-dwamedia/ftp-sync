@@ -89,8 +89,8 @@ def create_Ad_Tables():
 	cur.execute("SELECT AdvertiserName, AdvertiserID FROM SF_Match.Advertisers")
 	advert = cur.fetchall()
 	for a in advert:
-		print a[0], a[1]
-		tableName0=a[0].replace(" ", "_")+"_Std"
+	#	print a[0], a[1]
+		tableName0="Std_" + a[0].replace(" ", "_")
 		tableName="DWA_SF_Cookie." +  tableName0
 		# check if table exists:
 		cur.execute("SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME LIKE '%s'"%tableName0);
@@ -106,11 +106,11 @@ def create_Ad_Tables():
 			cur.execute(stmt2)
 			cur.execute(stmt3)
 			cur.execute(stmt4)
+	return
 
 
 
-
-create_Ad_Tables
+create_Ad_Tables()
 
 
 
@@ -122,9 +122,40 @@ def insert_csv(file_name, target_table, standard_table = False):
 	os.system("mysqlimport -u%s -p%s --local --ignore-lines=1 --ignore --fields-terminated-by=\",\" --lines-terminated-by=\"\n\" %s %s"%(user, pw, db, tmp_path+ "/" +target_table))
 	if not standard_table:
 		return 	
-	else:
+        cur.execute("SELECT AdvertiserName, AdvertiserID FROM SF_Match.Advertisers")
+        advert = cur.fetchall()
+	for a in advert:
+		tableName0="Std_"+a[0].replace(" ", "_")
+		tableName="DWA_SF_Cookie." +  tableName0
+		print "updating %s"%tableName	
+		stmt5 = "INSERT INTO %s"%tableName + " (SELECT UserID, EventID, EventTypeID, STR_TO_DATE(EventDate, '%m/%d/%Y %h:%i:%s %p'), CampaignID, SiteID, PlacementID, IP, AdvertiserID FROM DWA_SF_Cookie.MM_Standard_tmp WHERE AdvertiserID ="+" %s"%a[1] + ") ON DUPLICATE KEY UPDATE EventID = Values(EventID)"
+		print stmt5
+		os.system("echo %s update begun at %s>> %s/adTables.log"%(tableName, datetime.datetime.now(), log_path))
+		cur.execute(stmt5)
+		os.system("echo %s update completed at %s>> %s/adTables.log"%(tableName, datetime.datetime.now(), log_path))
+	
+	cur.execute("INSERT INTO MM_Standard SELECT * FROM MM_Standard_tmp")
+	cur.execute("TRUNCATE  MM_Standard_tmp")	
 	return
-insert_csv("/usr/local/var/ftp_sync/downloaded/Standard/test.csv", "MM_Standard_tmp", True)
+#insert_csv("/usr/local/var/ftp_sync/downloaded/Standard/test.csv", "MM_Standard_tmp", True)
+
+
+def main():
+	zip_dir = "/usr/local/var/ftp_sync/downloaded/"
+	ls_files = 	subprocess.check_output(['ls',zip_dir]).split()
+	for l in ls_files:
+		if "Standard" in l and "zip" in l:
+			print l
+			
+			cmd = "unzip -xu %s -d%s/Standard"%(zip_dir + "/" + l, zip_dir)
+			print cmd			
+			os.system(cmd)
+			for csv_file in subprocess.check_output(['ls', zip_dir+"/Standard"]).split():
+				insert_csv(zip_dir + "/Standard/" + csv_file, "MM_Standard_tmp", True)
+					
+		
+	return
+main()
 '''
 "ftp -vpi ftp.platform.mediamind.com < $TMP_PATH/downloadCmds 2>> $LOG_PATH/ftpErrors.log >> $LOG_PATH/ftpLog
 # def insert_csv()
