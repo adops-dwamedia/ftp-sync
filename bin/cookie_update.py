@@ -127,9 +127,9 @@ def insert_csv(file_name, target_table, standard_table = False):
 	for a in advert:
 		tableName0="Std_"+a[0].replace(" ", "_")
 		tableName="DWA_SF_Cookie." +  tableName0
-		print "updating %s"%tableName	
+	#	print "updating %s"%tableName	
 		stmt5 = "INSERT INTO %s"%tableName + " (SELECT UserID, EventID, EventTypeID, STR_TO_DATE(EventDate, '%m/%d/%Y %h:%i:%s %p'), CampaignID, SiteID, PlacementID, IP, AdvertiserID FROM DWA_SF_Cookie.MM_Standard_tmp WHERE AdvertiserID ="+" %s"%a[1] + ") ON DUPLICATE KEY UPDATE EventID = Values(EventID)"
-		print stmt5
+	#	print stmt5
 		os.system("echo %s update begun at %s>> %s/adTables.log"%(tableName, datetime.datetime.now(), log_path))
 		cur.execute(stmt5)
 		os.system("echo %s update completed at %s>> %s/adTables.log"%(tableName, datetime.datetime.now(), log_path))
@@ -151,9 +151,11 @@ def main():
 			print cmd			
 			os.system(cmd)
 			for csv_file in subprocess.check_output(['ls', zip_dir+"/Standard"]).split():
-				insert_csv(zip_dir + "/Standard/" + csv_file, "MM_Standard_tmp", True)
-					
-		
+				try:
+					insert_csv(zip_dir + "/Standard/" + csv_file, "MM_Standard_tmp", True)
+				except:
+					cmd = "echo 'import of %s failed' >> %s"%(csv_file,log_path) + "/mysqlImport.err"
+					os.system(cmd)
 	return
 main()
 '''
