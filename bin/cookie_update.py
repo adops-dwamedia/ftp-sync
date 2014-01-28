@@ -115,7 +115,7 @@ create_Ad_Tables()
 
 
 
-def insert_csv(file_name, target_table, standard_table = False):
+def insert_csv(file_name, target_table, standard_table = False, target_account = False):
 	mv_cmd = "mv %s %s"%(file_name, tmp_path+"/"+target_table)
 	os.system(mv_cmd)
 	print mv_cmd
@@ -124,6 +124,8 @@ def insert_csv(file_name, target_table, standard_table = False):
 		return 	
         cur.execute("SELECT AdvertiserName, AdvertiserID FROM SF_Match.Advertisers")
         advert = cur.fetchall()
+	if target_account:
+		advert = target_account
 	for a in advert:
 		tableName0="Std_"+a[0].replace(" ", "_")
 		tableName="DWA_SF_Cookie." +  tableName0
@@ -152,7 +154,7 @@ def main():
 			os.system(cmd)
 			for csv_file in subprocess.check_output(['ls', zip_dir+"/Standard"]).split():
 				try:
-					insert_csv(zip_dir + "/Standard/" + csv_file, "MM_Standard_tmp", True)
+					insert_csv(zip_dir + "/Standard/" + csv_file, "MM_Standard_tmp", True, [["Plantronics",95500]])
 				except:
 					cmd = "echo 'import of %s failed' >> %s"%(csv_file,log_path) + "/mysqlImport.err"
 					os.system(cmd)
