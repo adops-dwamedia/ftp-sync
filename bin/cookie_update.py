@@ -138,22 +138,31 @@ def main():
 	zip_dir = "/usr/local/var/ftp_sync/downloaded/"
 	ls_files = 	subprocess.check_output(['ls',zip_dir]).split()
 	for l in ls_files:
+		sql_errors = False
 		if "Standard" in l and "zip" in l:
 			print l
-			
 			cmd = "unzip -xu %s -d%s/Standard"%(zip_dir + "/" + l, zip_dir)
 			print cmd			
 			os.system(cmd)
 			for csv_file in subprocess.check_output(['ls', zip_dir+"/Standard"]).split():
 				try:
+					print ""
 					insert_csv(zip_dir + "/Standard/" + csv_file, "MM_Standard_tmp", True, [["Plantronics",95500]])
 				except:
 					cmd = "echo 'import of %s failed' >> %s"%(csv_file,log_path) + "/mysqlImport.err"
 					os.system(cmd)
+					sql_errors = True
+			if not sql_errors:
+				stmt = "INSERT INTO import_log VALUES ('%s', CURRENT_DATE()) ON DUPLICATE KEY UPDATE importDate = CURRENT_DATE()"%l
+				print stmt
+				cur.execute(stmt)
+			mv_cmd = "mv "+zip_dir + l + " "+zip_dir+"/inSql/"
+			print mv_cmd
+			os.system(mv_cmd)
 	return
 
 def update_all():
 	(file_ls,ftp_cmds) = get_ftp_commands()
 	get_ftp_data(ftp_cmds)
-	
-update_all()
+
+main()	
