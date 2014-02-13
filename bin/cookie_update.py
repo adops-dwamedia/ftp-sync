@@ -146,8 +146,7 @@ def main():
 			os.system(cmd)
 			for csv_file in subprocess.check_output(['ls', zip_dir+"/Standard"]).split():
 				try:
-					print ""
-					insert_csv(zip_dir + "/Standard/" + csv_file, "MM_Standard_tmp", True, [["Plantronics",95500]])
+					insert_csv(zip_dir + "/Standard/" + csv_file, "MM_Standard_tmp", True)
 				except:
 					cmd = "echo 'import of %s failed' >> %s"%(csv_file,log_path) + "/mysqlImport.err"
 					os.system(cmd)
