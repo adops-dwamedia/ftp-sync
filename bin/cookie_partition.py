@@ -41,19 +41,29 @@ def update_partitions(table,col,cur):
 	# create list of stmts to check the number of distinct values in each partition.  
 	stmts = [] 
 	for i in range(len(values)): 
-		stmt = "SELECT DISTINCT(%s) FROM %s WHERE %s "%(col,table,col) 
+		stmt = "SELECT DISTINCT(%s+1) FROM %s WHERE %s "%(col,table,col) 
 		if i == 0: 
 			stmt += ">= -100000 AND %s < %s"%(col, values[i]) 
 		else: 
 			stmt += ">= %s AND %s < %s"%(values[i-1], col, values[i]) 
+		stmt += " ORDER BY %s"%col
 		stmts.append(stmt) 
-	stmts.append("SELECT DISTINCT %s FROM %s WHERE %s >= %s"%(col,table,col,values[-1])) 
-	print stmts
-	for i in range(len(stmts)):
-		cur.execute(stmt)
-		ds = cur.fetchall()
-		print ds, len(ds)
+	stmts.append("SELECT DISTINCT %s+1 FROM %s WHERE %s >= %s ORDER BY %s"%(col,table,col,values[-1], col)) 
+	
+	# loop through statements, and create a new partition if any contain multiple values. 
+	# last stmt (maxvalue) is a special case and is handled separately
 
+	for i in range(len(stmts)-1):
+		cur.execute(stmts[i])
+		ds = cur.fetchall()
+		if len(ds) > 1:
+			stmt = "ALTER TABLE %s REORGANIZE PARTITION %s INTO("%(table, names[i])
+			for d in ds:
+				stmt += "PARTITION p%s VALUES LESS THAN (%s),"%(d[0],d[0])
+			stmt = stmt[:-1] + ")"
+			print stmt
+			cur.execute(stmt)
+	cur.execute()
 
 update_partitions("test.test", "id", cur)
 
