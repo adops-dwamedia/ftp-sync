@@ -54,19 +54,22 @@ def update_partitions(table,col,cur):
 	# last stmt (maxvalue) is a special case and is handled separately
 
 	for i in range(len(stmts)):
+		print stmts[i]
 		cur.execute(stmts[i])
 		ds = cur.fetchall()
-		if len(ds) > 1:
+		print ds
+		if len(ds) > 1 or (len(ds) > 0 and i == len(stmts)-1):
 			stmt = "ALTER TABLE %s REORGANIZE PARTITION %s INTO("%(table, names[i])
 			for j in range(len(ds)):
+				stmt += "PARTITION p%s VALUES LESS THAN (%s),"%(ds[j][0],ds[j][0])
+				
+				# if we are on the last partition, create empty MAXVALUE partition to collect future new values
 				if i == len(stmts)-1 and j == len(ds)-1:
 					stmt += "PARTITION pMAX VALUES LESS THAN MAXVALUE,"
-				else:
-					stmt += "PARTITION p%s VALUES LESS THAN (%s),"%(ds[j][0],ds[j][0])
 			stmt = stmt[:-1] + ")"
 			print stmt
 			cur.execute(stmt)
-update_partitions("test.test", "id", cur)
+update_partitions("test.test", "to_days(d)", cur)
 
 
 	
