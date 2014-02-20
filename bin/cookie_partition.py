@@ -53,18 +53,19 @@ def update_partitions(table,col,cur):
 	# loop through statements, and create a new partition if any contain multiple values. 
 	# last stmt (maxvalue) is a special case and is handled separately
 
-	for i in range(len(stmts)-1):
+	for i in range(len(stmts)):
 		cur.execute(stmts[i])
 		ds = cur.fetchall()
 		if len(ds) > 1:
 			stmt = "ALTER TABLE %s REORGANIZE PARTITION %s INTO("%(table, names[i])
-			for d in ds:
-				stmt += "PARTITION p%s VALUES LESS THAN (%s),"%(d[0],d[0])
+			for j in range(len(ds)):
+				if i == len(stmts)-1 and j == len(ds)-1:
+					stmt += "PARTITION pMAX VALUES LESS THAN MAXVALUE,"
+				else:
+					stmt += "PARTITION p%s VALUES LESS THAN (%s),"%(ds[j][0],ds[j][0])
 			stmt = stmt[:-1] + ")"
 			print stmt
 			cur.execute(stmt)
-	cur.execute()
-
 update_partitions("test.test", "id", cur)
 
 
