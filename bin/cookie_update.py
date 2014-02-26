@@ -67,11 +67,6 @@ def get_ftp_commands():
 #		print ftp_cmds 	
 	return file_ls, ftp_cmds
  	
-	 
-#(file_ls,ftp_cmds) = get_ftp_commands()
- 
- 
- 
 def get_ftp_data(ftp_cmds):
 	file_name = "%s/downloadCmds"%tmp_path
 	print file_name
@@ -81,9 +76,8 @@ def get_ftp_data(ftp_cmds):
 	
 	ftp_import = "ftp -vpi ftp.platform.mediamind.com < %s/downloadCmds "%tmp_path
 	os.system(ftp_import)
-#	subprocess.Popen(['ftp', '-pvi', 'ftp.platform.mediamind.com'], stdin=download_cmd_file)	
+	subprocess.Popen(['ftp', '-p', '-v', '-i' 'ftp.platform.mediamind.com'], stdin=download_cmd_file)	
 	return
-#get_ftp_data(ftp_cmds)
 
 def create_Ad_Tables():
 	cur.execute("SELECT AdvertiserName, AdvertiserID FROM SF_Match.Advertisers")
@@ -132,9 +126,8 @@ def insert_csv(file_name, target_table, standard_table = False, target_account =
 	cur.execute("INSERT INTO MM_Standard SELECT * FROM MM_Standard_tmp")
 	cur.execute("TRUNCATE  MM_Standard_tmp")	
 	return
-#insert_csv("/usr/local/var/ftp_sync/downloaded/Standard/test.csv", "MM_Standard_tmp", True)
 
-def main():
+def insert_all():
 	zip_dir = "/usr/local/var/ftp_sync/downloaded/"
 	ls_files = 	subprocess.check_output(['ls',zip_dir]).split()
 	for l in ls_files:
@@ -163,5 +156,5 @@ def main():
 def update_all():
 	(file_ls,ftp_cmds) = get_ftp_commands()
 	get_ftp_data(ftp_cmds)
-
-main()	
+def main():
+	update_all()
