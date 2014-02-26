@@ -157,4 +157,4 @@ def update_all():
 	(file_ls,ftp_cmds) = get_ftp_commands()
 	get_ftp_data(ftp_cmds)
 def main():
-	update_all()
+	insert_all()
