@@ -16,68 +16,24 @@ data_path="/usr/local/var/ftp_sync/downloaded/"
 log_path="/usr/local/ftp_sync/logs/"
 tmp_path="/usr/local/ftp_sync/var/"
 
-user="tomb"
-host="localhost"
-db="DWA_SF_Cookie"
-pw='DW4mediatb'
 
+def ftp_sync(sync_dir):
+	p1 = subprocess.Popen(['echo', "nlist . %s"%sync_dir], stdout= subprocess.PIPE)
+	server_files = subprocess.check_output(["ftp", "-p", "-i", "ftp.platform.mediamind.com"], stdin = p1.PIPE).split()
+	local_files = subprocess.check_output(["ls", sync_dir]).split()
 
-# connect to db
-try:
-	con = mdb.connect(host, user, pw, db)
-	cur = con.cursor()
-	con.set_character_set('utf8')
-	con.autocommit(True)
-	cur.execute('SET NAMES utf8;') 
-	cur.execute('SET CHARACTER SET utf8;')
-	cur.execute('SET character_set_connection=utf8;')
+	cmd = ""
+	for sf in server_files:
+		if sf not in local_files and "zip" in sf:
+			cmd += "get %s;"
+	cmd = "'" + cmd + "'"
 
-        
-except mdb.Error, e:
-
-	print "Error %d: %s" % (e.args[0], e.args[1])
-	sys.exit(1)
-
-
-
-def get_ftp_commands():
-
-# checks import_log table and returns two arrays: one with ftp commands and one with the
-# list of files to be downloaded.
-	#retrieve list of files available
-	print "retrieving list of files"
-	file_ls_raw = subprocess.check_output("""ftp -pid ftp.platform.mediamind.com  << EOF
-	nlist 
-	quit
-	EOF""", shell=True).split("\n")
-	file_ls = []
-	for i in range(len(file_ls_raw)):
-		if file_ls_raw[i][-3:] == "zip":
-			file_ls.append(file_ls_raw[i])
-
-	#retrieve list of files in db, remove files already imported
-	cur.execute("SELECT DISTINCT fileName FROM import_log")
-	for f in cur.fetchall():
-		if f[0] in file_ls: file_ls.remove(f[0])
-	
-
-	ftp_cmds = ""
-	for f in file_ls:
-		ftp_cmds += "get %s %s/%s\n"%(f, data_path, f)
-#		print ftp_cmds 	
-	return file_ls, ftp_cmds
- 	
-def get_ftp_data(ftp_cmds):
-	file_name = "%s/downloadCmds"%tmp_path
-	print file_name
-	download_cmd_file = open (file_name, "w+")
-	download_cmd_file.write(ftp_cmds)
-	os.system("echo 'starting ftp import process at '`date`")
-	
-	ftp_import = "ftp -vpi ftp.platform.mediamind.com < %s/downloadCmds "%tmp_path
-	os.system(ftp_import)
-	subprocess.Popen(['ftp', '-p', '-v', '-i' 'ftp.platform.mediamind.com'], stdin=download_cmd_file)	
+	p1 = subprocess.Popen(['echo', cmd], stdout=subprocess.PIPE)
+	p2 = subprocess.Popen(["ftp", "-p", "-i", "ftp.platform.mediamind.com"], stdin = p1.PIPE)
 	return
+		
+	
+
 
 def create_Ad_Tables():
 	cur.execute("SELECT AdvertiserName, AdvertiserID FROM SF_Match.Advertisers")
