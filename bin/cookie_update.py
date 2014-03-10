@@ -104,8 +104,10 @@ def create_Ad_Tables():
 
 def insert_csv(file_name, target_table, standard_table = False, target_account = False):
 	mv_cmd = "mv %s %s"%(file_name, tmp_path+"/"+target_table)
-	os.system(mv_cmd)
 	print mv_cmd
+	return_code = os.system(mv_cmd)
+	if return_code != 0:
+		raise Exception("os.system returned error code")
 	os.system("mysqlimport -u%s -p%s --local --ignore-lines=1 --ignore --fields-terminated-by=\",\" --lines-terminated-by=\"\n\" %s %s"%(user, pw, db, tmp_path+ "/" +target_table))
 	if not standard_table:
 		return 	
@@ -128,8 +130,10 @@ def insert_csv(file_name, target_table, standard_table = False, target_account =
 	return
 
 def insert_all():
+	print "insert all"
 	zip_dir = "/usr/local/var/ftp_sync/downloaded/"
 	ls_files = 	subprocess.check_output(['ls',zip_dir]).split()
+	print ls_files
 	for l in ls_files:
 		sql_errors = False
 		if "Standard" in l and "zip" in l:
@@ -143,6 +147,7 @@ def insert_all():
 				except:
 					cmd = "echo 'import of %s failed' >> %s"%(csv_file,log_path) + "/mysqlImport.err"
 					os.system(cmd)
+					return
 					sql_errors = True
 			if not sql_errors:
 				stmt = "INSERT INTO import_log VALUES ('%s', CURRENT_DATE()) ON DUPLICATE KEY UPDATE importDate = CURRENT_DATE()"%l
@@ -151,6 +156,17 @@ def insert_all():
 			mv_cmd = "mv "+zip_dir + l + " "+zip_dir+"/inSql/"
 			print mv_cmd
 			os.system(mv_cmd)
+		elif "Conversion" in l and "zip" in l:
+			cmd = "unzip -xu %s -d%s/Conversion"%(zip_dir + "/" + l, zip_dir)
+			print cmd
+			os.system(cmd)
+			for csv_file in subprocess.check_output(['ls', zip_dir+"/Conversion"]).split():
+				try:
+					insert_csv(zip_dir + "/Conversion/" + csv_file, "MM_Conversion")
+				except:
+					cmd = "echo 'import of %s failed' >> %s"%(csv_file,log_path) + "/mysqlImport.err"
+					os.system(cmd)
+					sql_errors = True
 	return
 
 def update_all():
@@ -158,3 +174,4 @@ def update_all():
 	get_ftp_data(ftp_cmds)
 def main():
 	insert_all()
+main()
