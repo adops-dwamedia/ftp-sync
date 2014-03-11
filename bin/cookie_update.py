@@ -7,14 +7,10 @@ import sys
 import os
 import re
 import datetime
+import mysql_login
 from warnings import filterwarnings
 filterwarnings('ignore', category = mdb.Warning)
 
-home_path="/usr/local/ftp_sync/bin"
-sql_path="/usr/local/ftp_sync/SQL/"
-data_path="/usr/local/var/ftp_sync/downloaded/"
-log_path="/usr/local/ftp_sync/logs/"
-tmp_path="/usr/local/ftp_sync/var/"
 
 
 def ftp_sync(sync_dir):
@@ -33,13 +29,19 @@ def ftp_sync(sync_dir):
 	return
 		
 	
-
-
-def create_Ad_Tables():
+def get_Advertiser_dict(cur):
+        cur.execute("SELECT AdvertiserName, AdvertiserID FROM SF_Match.Advertisers")
+        advert = cur.fetchall()
+	adv_dict = {}
+	for a in advert:
+		tblName = "Std_"+a[0].replace(" ","_")
+		adv_dict[a[1]] = tblName
+	return adv_dict
+def create_Ad_Tables(cur):
 	cur.execute("SELECT AdvertiserName, AdvertiserID FROM SF_Match.Advertisers")
 	advert = cur.fetchall()
 	for a in advert:
-	#	print a[0], a[1]
+		print a[0], a[1]
 		tableName0="Std_" + a[0].replace(" ", "_")
 		tableName="DWA_SF_Cookie." +  tableName0
 		# check if table exists:
@@ -47,7 +49,7 @@ def create_Ad_Tables():
 		res = cur.fetchall()
 		if len(res) == 0:
 			print "Creating table %s"%tableName
-			stmt1 = "CREATE TABLE IF NOT EXISTS %s"%tableName + " AS SELECT UserID, EventID, EventTypeID, STR_TO_DATE(EventDate, '%m/%d/%Y %h:%i:%s %p') AS EventDate, CampaignID, SiteID, PlacementID, IP, AdvertiserID FROM DWA_SF_Cookie.MM_Standard_tmp WHERE 1=0"
+			stmt1 = "CREATE TABLE IF NOT EXISTS %s"%tableName + " AS SELECT UserID, EventID, EventTypeID, STR_TO_DATE(EventDate, '%m/%d/%Y %h:%i:%s %p') AS EventDate, CampaignID, SiteID, PlacementID, IP, AdvertiserID FROM DWA_SF_Cookie.Std_Akamai WHERE 1=0"
 			stmt2 = "ALTER TABLE %s ADD PRIMARY KEY(EventID)"%tableName
 			stmt3 = "ALTER TABLE %s ADD INDEX (UserID)"%tableName
 			stmt4 = "ALTER TABLE %s ADD INDEX (EventDate)"%tableName
@@ -56,26 +58,35 @@ def create_Ad_Tables():
 			cur.execute(stmt2)
 			cur.execute(stmt3)
 			cur.execute(stmt4)
+		
 	return
 
-def csv_Standard(file_name):
-	os.system("mysqlimport -u%s -p%s --local --ignore-lines=1 --ignore --fields-terminated-by=\",\" --lines-terminated-by=\"\n\" %s %s"%(user, pw, db, tmp_path+ "/" +target_table))
-        cur.execute("SELECT AdvertiserName, AdvertiserID FROM SF_Match.Advertisers")
-        advert = cur.fetchall()
-	if target_account:
-		advert = target_account
-	for a in advert:
-		tableName0="Std_"+a[0].replace(" ", "_")
-		tableName="DWA_SF_Cookie." +  tableName0
-	#	print "updating %s"%tableName	
-		stmt5 = "INSERT INTO %s"%tableName + " (SELECT UserID, EventID, EventTypeID, STR_TO_DATE(EventDate, '%m/%d/%Y %h:%i:%s %p'), CampaignID, SiteID, PlacementID, IP, AdvertiserID FROM DWA_SF_Cookie.MM_Standard_tmp WHERE AdvertiserID ="+" %s"%a[1] + ") ON DUPLICATE KEY UPDATE EventID = Values(EventID)"
-	#	print stmt5
-		os.system("echo %s update begun at %s>> %s/adTables.log"%(tableName, datetime.datetime.now(), log_path))
-		cur.execute(stmt5)
-		os.system("echo %s update completed at %s>> %s/adTables.log"%(tableName, datetime.datetime.now(), log_path))
-	
-	cur.execute("INSERT INTO MM_Standard SELECT * FROM MM_Standard_tmp")
-	cur.execute("TRUNCATE  MM_Standard_tmp")	
+
+
+def csv_Standard(file_name, cur, tbl_dict={},key_pos=3):
+	cur.execute("USE DWA_SF_Cookie")
+	# distributes csv file into various Std_CLIENT tables. requires dict and position in each csv line of ID that matches dict key.
+	keys_set = False
+	x = 0
+	with open(file_name,'r') as f:
+		while True:
+			vals = f.readline()
+			if vals is None or vals == "": break
+			vals = [i.replace("\r\n","") for i in vals.split(",")]	
+			if not keys_set:
+				col_names = vals
+				keys_set = True
+			else:
+				row_d = {}
+				for i in range(len(vals)):
+					row_d[col_names[i]] = "'%s'"%vals[i]
+				row_d['EventDate'] = "STR_TO_DATE(%s,'%%c/%%e/%%Y %%l:%%i:%%s %%p')"%row_d['EventDate']
+				stmt = "INSERT IGNORE INTO %s (UserID, EventID, EventTypeID, EventDate, CampaignID, SiteID, PlacementID, IP, AdvertiserID) VALUES ("%tbl_dict[row_d['AdvertiserID'].replace("'","")]
+				stmt += "%s,"*9
+				stmt = stmt%(row_d['UserID'],row_d['EventID'], row_d['EventTypeID'], row_d['EventDate'], row_d['CampaignID'],row_d['SiteID'], row_d['PlacementID'], row_d['IP'], row_d['AdvertiserID'])
+				stmt = stmt[:-1]+")"
+				print stmt
+				cur.execute(stmt)	
 	return
 
 def insert_all():
@@ -122,5 +133,12 @@ def update_all():
 	(file_ls,ftp_cmds) = get_ftp_commands()
 	get_ftp_data(ftp_cmds)
 def main():
-	ftp_sync("/usr/local/var/ftp_sync/downloaded")
+	con,cur = mysql_login.mysql_login()
+	adv_dict = get_Advertiser_dict(cur)
+	con.autocommit(True)
+#	create_Ad_Tables(cur)	
+	csv_Standard("/usr/local/var/ftp_sync/downloaded/test.csv", cur,adv_dict)
+	if con:
+		con.commit()
+		con.close()		
 main()
