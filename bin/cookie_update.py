@@ -19,7 +19,7 @@ tmp_path="/usr/local/ftp_sync/var/"
 
 def ftp_sync(sync_dir):
 	p1 = subprocess.Popen(['echo', "nlist . %s"%sync_dir], stdout= subprocess.PIPE)
-	server_files = subprocess.check_output(["ftp", "-p", "-i", "ftp.platform.mediamind.com"], stdin = p1.PIPE).split()
+	server_files = subprocess.check_output(["ftp", "-p", "-i", "ftp.platform.mediamind.com"], stdin = p1.stdout).split()
 	local_files = subprocess.check_output(["ls", sync_dir]).split()
 
 	cmd = ""
@@ -29,7 +29,7 @@ def ftp_sync(sync_dir):
 	cmd = "'" + cmd + "'"
 
 	p1 = subprocess.Popen(['echo', cmd], stdout=subprocess.PIPE)
-	p2 = subprocess.Popen(["ftp", "-p", "-i", "ftp.platform.mediamind.com"], stdin = p1.PIPE)
+	p2 = subprocess.call(["ftp", "-p", "-i", "ftp.platform.mediamind.com"], stdin = p1.stdout)
 	return
 		
 	
@@ -58,15 +58,8 @@ def create_Ad_Tables():
 			cur.execute(stmt4)
 	return
 
-def insert_csv(file_name, target_table, standard_table = False, target_account = False):
-	mv_cmd = "mv %s %s"%(file_name, tmp_path+"/"+target_table)
-	print mv_cmd
-	return_code = os.system(mv_cmd)
-	if return_code != 0:
-		raise Exception("os.system returned error code")
+def csv_Standard(file_name):
 	os.system("mysqlimport -u%s -p%s --local --ignore-lines=1 --ignore --fields-terminated-by=\",\" --lines-terminated-by=\"\n\" %s %s"%(user, pw, db, tmp_path+ "/" +target_table))
-	if not standard_table:
-		return 	
         cur.execute("SELECT AdvertiserName, AdvertiserID FROM SF_Match.Advertisers")
         advert = cur.fetchall()
 	if target_account:
@@ -129,5 +122,5 @@ def update_all():
 	(file_ls,ftp_cmds) = get_ftp_commands()
 	get_ftp_data(ftp_cmds)
 def main():
-	insert_all()
+	ftp_sync("/usr/local/var/ftp_sync/downloaded")
 main()
