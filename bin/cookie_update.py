@@ -14,16 +14,17 @@ filterwarnings('ignore', category = mdb.Warning)
 
 
 def ftp_sync(sync_dir):
-	p1 = subprocess.Popen(['echo', "nlist . %s"%sync_dir], stdout= subprocess.PIPE)
+	p1 = subprocess.Popen(['echo', "nlist" ], stdout= subprocess.PIPE)
 	server_files = subprocess.check_output(["ftp", "-p", "-i", "ftp.platform.mediamind.com"], stdin = p1.stdout).split()
 	local_files = subprocess.check_output(["ls", sync_dir]).split()
-
+#	print server_files
+#	print local_files
 	cmd = ""
 	for sf in server_files:
 		if sf not in local_files and "zip" in sf:
-			cmd += "get %s;"
+			cmd += "get %s\n"%sf
 	cmd = "'" + cmd + "'"
-
+	print cmd
 	p1 = subprocess.Popen(['echo', cmd], stdout=subprocess.PIPE)
 	p2 = subprocess.call(["ftp", "-p", "-i", "ftp.platform.mediamind.com"], stdin = p1.stdout)
 	return
@@ -38,7 +39,7 @@ def get_Advertiser_dict(cur):
 		adv_dict[a[1]] = tblName
 	return adv_dict
 def create_Ad_Tables(cur):
-	cur.execute("SELECT AdvertiserName, AdvertiserID FROM SF_Match.Advertisers")
+	cur.execute("SELECT AdvertiserName, AdvertiserID FROM SF_Match.Advertisers WHERE Active = 1")
 	advert = cur.fetchall()
 	for a in advert:
 		print a[0], a[1]
@@ -81,7 +82,7 @@ def csv_Standard(file_name, cur, tbl_dict={},key_pos=3):
 				for i in range(len(vals)):
 					row_d[col_names[i]] = "'%s'"%vals[i]
 				row_d['EventDate'] = "STR_TO_DATE(%s,'%%c/%%e/%%Y %%l:%%i:%%s %%p')"%row_d['EventDate']
-				stmt = "INSERT IGNORE INTO %s (UserID, EventID, EventTypeID, EventDate, CampaignID, SiteID, PlacementID, IP, AdvertiserID) VALUES ("%tbl_dict[row_d['AdvertiserID'].replace("'","")]
+				stmt = "INSERT IGNORE INTO %s (loadTime, UserID, EventID, EventTypeID, EventDate, CampaignID, SiteID, PlacementID, IP, AdvertiserID) VALUES (CURRENT_TIMESTAMP(), "%tbl_dict[row_d['AdvertiserID'].replace("'","")]
 				stmt += "%s,"*9
 				stmt = stmt%(row_d['UserID'],row_d['EventID'], row_d['EventTypeID'], row_d['EventDate'], row_d['CampaignID'],row_d['SiteID'], row_d['PlacementID'], row_d['IP'], row_d['AdvertiserID'])
 				stmt = stmt[:-1]+")"
@@ -136,8 +137,9 @@ def main():
 	con,cur = mysql_login.mysql_login()
 	adv_dict = get_Advertiser_dict(cur)
 	con.autocommit(True)
-#	create_Ad_Tables(cur)	
+	create_Ad_Tables(cur)	
 	csv_Standard("/usr/local/var/ftp_sync/downloaded/test.csv", cur,adv_dict)
+#	ftp_sync("/usr/local/var/ftp_sync/downloaded")
 	if con:
 		con.commit()
 		con.close()		
