@@ -70,9 +70,12 @@ def csv_Standard(file_name, cur, tbl_dict={},key_pos=3):
 	keys_set = False
 	x = 0
 	with open(file_name,'r') as f:
+		stmt_dict = {}
+		line_i = 0
 		while True:
+			line_i += 1
+			if line_i%10000 == 0: print line_i
 			vals = f.readline()
-			stmt_dict = {}
 			if vals is None or vals == "": break
 			vals = [i.replace("\r\n","") for i in vals.split(",")]	
 			if not keys_set:
@@ -87,12 +90,14 @@ def csv_Standard(file_name, cur, tbl_dict={},key_pos=3):
 					stmt = "INSERT IGNORE INTO %s (loadTime, UserID, EventID, EventTypeID, EventDate, CampaignID, SiteID, PlacementID, IP, AdvertiserID) VALUES "%tbl_dict[row_d['AdvertiserID'].replace("'","")]
 				else:
 					stmt = stmt_dict[row_d["AdvertiserID"]] + ","
-				stmt += "(NOW(), "+ "%s,"*9
-				stmt = stmt%(row_d['UserID'],row_d['EventID'], row_d['EventTypeID'], row_d['EventDate'], row_d['CampaignID'],row_d['SiteID'], row_d['PlacementID'], row_d['IP'], row_d['AdvertiserID'])
-				stmt = stmt[:-1]+")"
+				stmt_add = "(NOW(), "+ "%s,"*9
+				stmt_add = stmt_add%(row_d['UserID'],row_d['EventID'], row_d['EventTypeID'], row_d['EventDate'], row_d['CampaignID'],row_d['SiteID'], row_d['PlacementID'], row_d['IP'], row_d['AdvertiserID'])
+				stmt += stmt_add[:-1]+")"
 				stmt_dict[row_d['AdvertiserID']] = stmt
+		print stmt_dict
 		for k, stmt in stmt_dict.iteritems():
 			try:
+				print stmt
 				cur.execute(stmt)	
 			except:
 				print "fail: %s"%stmt
@@ -126,6 +131,7 @@ def update_all():
 def main():
 	con,cur = mysql_login.mysql_login()
 	adv_dict = get_Advertiser_dict(cur)
+	print adv_dict
 	con.autocommit(True)
 #	remove_dups("Std_Akamai", "eventID", "loadTime", cur)
 #	create_Ad_Tables(cur)	

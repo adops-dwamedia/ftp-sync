@@ -51,8 +51,8 @@ def get_campaign_advertisers(cur):
 	return advertisers
 
 def create_advertiser_views(advertisers, cur):
-	cur.execute("CREATE DATABASE IF NOT EXISTS advertiser_views")
-	cur.execute("USE advertiser_views")
+#	cur.execute("CREATE DATABASE IF NOT EXISTS advertiser_views")
+#	cur.execute("USE advertiser_views")
 
 	for a, cs in advertisers.iteritems():
 		tbl_name = a.replace(" ", "_")
@@ -68,4 +68,3 @@ def main():
 	advertisers = get_campaign_advertisers(cur)
 	create_advertiser_views(advertisers,cur)
 
-main()	
