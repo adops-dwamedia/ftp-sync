@@ -27,7 +27,7 @@ def ftp_sync(sync_dir):
 	return
 		
 	
-def csv_Standard(file_name, cur,insert_interval = 10000):
+def csv_Standard(file_name, cur,con, insert_interval = 1000):
 	cur.execute("USE DWA_SF_Cookie")
 	keys_set = False
 	line_i = 0
@@ -41,6 +41,7 @@ def csv_Standard(file_name, cur,insert_interval = 10000):
 			stmt = stmt[:-1]
 			try:
 				cur.execute(stmt)
+				con.commit()
 			except:
 				if insert_interval == 1:
 					print "fail: %s"%stmt
@@ -77,6 +78,7 @@ def csv_Standard(file_name, cur,insert_interval = 10000):
 			stmt += stmt_add
 	stmt = stmt[:-1]
 	cur.execute(stmt)	
+	con.commit()
 	return
 	
 def unzip_all(zip_dir, unzip_dir, fileType, cur, add_to_exclude=True):
@@ -94,8 +96,8 @@ def unzip_all(zip_dir, unzip_dir, fileType, cur, add_to_exclude=True):
 	
 def main():
 	con,cur = mysql_login.mysql_login()
-	con.autocommit(True)
-	unzip_all("/usr/local/var/ftp_sync/downloaded/", "/usr/local/var/ftp_sync/downloaded/Standard/","Standard", cur)
+	con.autocommit(False)
+#	unzip_all("/usr/local/var/ftp_sync/downloaded/", "/usr/local/var/ftp_sync/downloaded/Standard/","Standard", cur)
 	#create_Ad_Tables(cur)	
 	files_dir = "/usr/local/var/ftp_sync/downloaded/Standard/"
 	files = subprocess.check_output(["ls", files_dir]).split()
@@ -103,10 +105,11 @@ def main():
 	cur.execute("SELECT filename FROM exclude_list")
 	excludes = [x[0] for x in cur.fetchall()]
 	for f in files:
-		if "Standard" in f and f not in excludes:
-			ret = csv_Standard(files_dir + f, cur)
+		if "Standard" in f:# and f not in excludes:
+			ret = csv_Standard(files_dir + f, cur,con)
 			if ret is None:
 				cur.execute("INSERT INTO exclude_list VALUES ('%s')"%f)
+				con.commit()
 	#ftp_sync("/usr/local/var/ftp_sync/downloaded")
 	if con:
 		con.commit()
