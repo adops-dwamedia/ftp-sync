@@ -27,16 +27,16 @@ def ftp_sync(sync_dir):
 	return
 		
 	
-def csv_Standard(file_name, cur,insert_interval = 1000):
+def csv_Standard(file_name, cur,insert_interval = 10000):
 	cur.execute("USE DWA_SF_Cookie")
 	keys_set = False
 	line_i = 0
 	stmt = ""
-	print "inserting, printing times for insertion of %s records"%insert_interval
+	print "inserting from %s, printing times for insertion of %s records"%(file_name,insert_interval)
 	start = datetime.datetime.now()
 	for l in open(file_name,"r"):
 		if line_i%insert_interval == 0 and stmt != "": 
-			print str(datetime.datetime.now() - start)+",%s"%file_name
+			print str(datetime.datetime.now() - start)+",%s"%line_i
 			start = datetime.datetime.now()
 			stmt = stmt[:-1]
 			try:
@@ -79,24 +79,34 @@ def csv_Standard(file_name, cur,insert_interval = 1000):
 	cur.execute(stmt)	
 	return
 	
-def unzip_all(zip_dir, unzip_dir = "./"):
+def unzip_all(zip_dir, unzip_dir, fileType, cur, add_to_exclude=True):
         cur.execute("SELECT filename FROM exclude_list")
         excludes = [x[0] for x in cur.fetchall()]
 	files = subprocess.check_output(["ls", zip_dir]).split()
 	for f in files:
-		if f not in excludes:
-			subprocess.call(["unzip", "-u", f, "-d", unzip_dir])
+	#	print f
+		if f not in excludes and fileType in f:
+			ret = subprocess.call(["unzip", "-u", zip_dir+f, "-d", unzip_dir])
+			if ret == 0:
+				cur.execute("INSERT INTO exclude_list VALUES ('%s')"%f)
 	
 
 	
 def main():
 	con,cur = mysql_login.mysql_login()
 	con.autocommit(True)
-#	create_Ad_Tables(cur)	
+	unzip_all("/usr/local/var/ftp_sync/downloaded/", "/usr/local/var/ftp_sync/downloaded/Standard/","Standard", cur)
+	#create_Ad_Tables(cur)	
 	files_dir = "/usr/local/var/ftp_sync/downloaded/Standard/"
 	files = subprocess.check_output(["ls", files_dir]).split()
+	
+	cur.execute("SELECT filename FROM exclude_list")
+	excludes = [x[0] for x in cur.fetchall()]
 	for f in files:
-		csv_Standard(files_dir + f, cur)
+		if "Standard" in f and f not in excludes:
+			ret = csv_Standard(files_dir + f, cur)
+			if ret is None:
+				cur.execute("INSERT INTO exclude_list VALUES ('%s')"%f)
 	#ftp_sync("/usr/local/var/ftp_sync/downloaded")
 	if con:
 		con.commit()
