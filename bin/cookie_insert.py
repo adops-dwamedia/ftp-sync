@@ -29,6 +29,7 @@ def ftp_sync(sync_dir):
 	
 def csv_Standard(file_name, cur,con, insert_interval = 1000):
 	cur.execute("USE DWA_SF_Cookie")
+	con.autocommit(False)
 	keys_set = False
 	line_i = 0
 	stmt = ""
