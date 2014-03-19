@@ -1,4 +1,0 @@
-mv: cannot stat `/usr/local/var/ftp_sync/downloaded//*Match*.zip': No such file or directory
-mv: cannot stat `/usr/local/var/ftp_sync/downloaded//Rich/*.zip': No such file or directory
-mv: cannot stat `/usr/local/var/ftp_sync/downloaded//Conversion/*.zip': No such file or directory
-mv: cannot stat `/usr/local/var/ftp_sync/downloaded//Standard/*.zip': No such file or directory
