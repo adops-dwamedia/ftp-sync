@@ -41,7 +41,6 @@ def csv_Standard(file_name, cur,con, insert_interval = 1000):
 			stmt = stmt[:-1]
 			try:
 				cur.execute(stmt)
-				con.commit()
 			except:
 				if insert_interval == 1:
 					print "fail: %s"%stmt
