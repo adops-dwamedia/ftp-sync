@@ -27,21 +27,34 @@ def ftp_sync(sync_dir):
 	return
 		
 	
-def csv_Standard(file_name, cur,con, insert_interval = 1000):
+def csv_Standard(file_name, cur,con, insert_interval = 1):
 	cur.execute("USE DWA_SF_Cookie")
+
+	#get adv dict.
+	cur.execute("SELECT AdvertiserName, AdvertiserID FROM SF_Match.Advertisers")
+	adv_dict = {}
+	for n, adid in cur.fetchall():
+		adv_dict[adid] = "Std_"+n.replace(" ","_")
+	#	cur.execute("CREATE TABLE %s AS SELECT * FROM MM_Standard WHERE 1=0"%adv_dict[adid])
+	#	cur.execute("ALTER TABLE %s ADD INDEX(userID, eventDate)"%adv_dict[adid])
+	#	cur.execute("ALTER TABLE %s ADD INDEX(eventDate)"%adv_dict[adid])
+	
 	con.autocommit(False)
 	keys_set = False
 	line_i = 0
 	stmt = ""
+	overall_start = datetime.datetime.now()
 	print "inserting from %s, printing times for insertion of %s records"%(file_name,insert_interval)
 	start = datetime.datetime.now()
 	for l in open(file_name,"r"):
 		if line_i%insert_interval == 0 and stmt != "": 
-			print str(datetime.datetime.now() - start)+",%s"%line_i
+			if insert_interval != 1 or line_i%1000 == 0 and line_i > 999:
+				print str(datetime.datetime.now() - start)+",%s"%line_i, "%s records per second"%int(line_i/((datetime.datetime.now()-overall_start).seconds+1))
 			start = datetime.datetime.now()
 			stmt = stmt[:-1]
 			try:
 				cur.execute(stmt)
+#				con.commit()
 			except:
 				if insert_interval == 1:
 					print "fail: %s"%stmt
@@ -90,7 +103,7 @@ def unzip_all(zip_dir, unzip_dir, fileType, cur, add_to_exclude=True):
 		if f not in excludes and fileType in f:
 			ret = subprocess.call(["unzip", "-u", zip_dir+f, "-d", unzip_dir])
 			if ret == 0:
-				cur.execute("INSERT INTO exclude_list VALUES ('%s')"%f)
+				cur.execute("INSERT IGNORE INTO exclude_list VALUES ('%s')"%f)
 	
 
 	
@@ -108,7 +121,7 @@ def main():
 		if "Standard" in f:# and f not in excludes:
 			ret = csv_Standard(files_dir + f, cur,con)
 			if ret is None:
-				cur.execute("INSERT INTO exclude_list VALUES ('%s')"%f)
+				cur.execute("INSERT IGNORE INTO exclude_list VALUES ('%s')"%f)
 				con.commit()
 	#ftp_sync("/usr/local/var/ftp_sync/downloaded")
 	if con:
