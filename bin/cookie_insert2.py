@@ -36,6 +36,22 @@ def ftp_sync(sync_dir):
 	return
 		
 	
+def partition_by_day(tblName,cur, startDate = -90, endDate = 30):
+	cur.execute("USE DWA_SF_Cookie")
+	# ugly one liner to get list of dates
+	days = [str(datetime.date.today() + datetime.timedelta(days=x)) for x in range(-90,30)]
+
+
+	dates = []
+	stmt = "ALTER TABLE %s PARTITION BY RANGE Columns (EventDate) ("%tblName
+	for d in days:
+		stmt += "PARTITION `p%s` VALUES LESS THAN ('%s'), "%(d,d)
+	stmt += "PARTITION pMAX VALUES LESS THAN (MAXVALUE))"
+	cur.execute(stmt)
+		
+	
+	
+	
 def csv_Standard(file_name, ad_dict, cur,con, insert_interval = 1, print_interval = 1000):
 	cur.execute("USE DWA_SF_Cookie")
 	# distribute Standard CSV file into DB tables for each Advertiser.
@@ -142,7 +158,7 @@ def create_ad_tables(cur, drop=False):
 		"IP varchar(16) NOT NULL DEFAULT ''," +\
 		"AdvertiserID mediumint(9) NOT NULL DEFAULT 0,"+\
 		"Referrer varchar(255) NOT NULL DEFAULT '',"+\
-		"PRIMARY KEY (EventID)," +\
+		"PRIMARY KEY (EventID, EventDate)," +\
 		"KEY userID (userID, EventDate)," +\
 		"KEY eventDate (eventDate))" 
 		cur.execute(stmt)
@@ -178,12 +194,17 @@ def main():
 	con,cur = mysql_login.mysql_login()
 	con.autocommit(False)
 #	unzip_all("/usr/local/var/ftp_sync/downloaded/", "/usr/local/var/ftp_sync/downloaded/Standard/","Standard", cur)
-
-
+	cur.execute("USE DWA_SF_Cookie")
+	cur.execute("SHOW TABLES LIKE 'Std%'")
+	tbls = [t[0] for t in cur.fetchall()]
+	for t in tbls:
+		partition_by_day(t,cur)
+	con.commit()		
+	return
 
 	create_ad_tables(cur, True)	
 	files_dir = "/usr/local/var/ftp_sync/downloaded/Standard/"
-	load_all_Standard(files_dir,cur,con, iv)
+	load_all_Standard(files_dir,cur,con, 1000)
 	end = datetime.datetime.now()
 	print "inserting %s records at a time took %s seconds"%(iv, (end-start).seconds)
 		
