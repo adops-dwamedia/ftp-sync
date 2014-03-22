@@ -121,8 +121,8 @@ def csv_Standard(file_name, ad_dict, cur,con, insert_interval = 1, print_interva
 				# benchmarking:
 				time_elapsed = (datetime.datetime.now()-overall_start).seconds + 1 # avoid div by zero
 				records_per_second = line_i/time_elapsed
-				print "\tinserting %s records into %s: time: %s, %s records per sec"%(
-				records,insert_d[adID]["tblName"],time_elapsed, records_per_second)
+				print "\t%s, %s records into %s: time: %s, %s records per sec"%(
+				file_name[-10:], records,insert_d[adID]["tblName"],time_elapsed, records_per_second)
 				
 				# reset
 				cur.execute(stmt)
@@ -193,25 +193,26 @@ def load_all_Standard(files_dir,cur,con,insert_interval = 1000):
 def main():
 	con,cur = mysql_login.mysql_login()
 	con.autocommit(False)
+#	create_ad_tables(cur, True)	
 #	unzip_all("/usr/local/var/ftp_sync/downloaded/", "/usr/local/var/ftp_sync/downloaded/Standard/","Standard", cur)
 	cur.execute("USE DWA_SF_Cookie")
 	cur.execute("SHOW TABLES LIKE 'Std%'")
 	tbls = [t[0] for t in cur.fetchall()]
-	for t in tbls:
-		partition_by_day(t,cur)
-	con.commit()		
-	return
+#	for t in tbls:
+#		partition_by_day(t,cur)
+#	con.commit()		
+#	return
+	start = datetime.datetime.now()
 
-	create_ad_tables(cur, True)	
 	files_dir = "/usr/local/var/ftp_sync/downloaded/Standard/"
 	load_all_Standard(files_dir,cur,con, 1000)
 	end = datetime.datetime.now()
-	print "inserting %s records at a time took %s seconds"%(iv, (end-start).seconds)
+	print "inserting %s records at a time took %s seconds"%(1000, (end-start).seconds)
 		
-	#create_ad_tables(cur,True)
 
 
-	#ftp_sync("/usr/local/var/ftp_sync/downloaded")
+
+
 	if con:
 		con.commit()
 		con.close()		
