@@ -121,8 +121,8 @@ def csv_Standard(file_name, ad_dict, cur,con, insert_interval = 1, print_interva
 				# benchmarking:
 				time_elapsed = (datetime.datetime.now()-overall_start).seconds + 1 # avoid div by zero
 				records_per_second = line_i/time_elapsed
-				print "\t%s, %s records into %s: time: %s, %s records per sec"%(
-				file_name[-10:], records,insert_d[adID]["tblName"],time_elapsed, records_per_second)
+				print "\t%s records from %s, %s records into %s: time: %s, %s records per sec"%(
+				line_i, file_name[-10:], records,insert_d[adID]["tblName"],time_elapsed, records_per_second)
 				
 				# reset
 				cur.execute(stmt)
