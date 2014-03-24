@@ -145,7 +145,7 @@ def csv_Standard(file_name, ad_dict, cur,con, insert_interval = 1, print_interva
 			# to int handling is necessary.
 			adID = int(row_d["AdvertiserID"].replace("'",""))
 			if adID not in insert_d.keys():
-				adID = '0'
+				adID = 0
 			stmt = insert_d[adID]["stmt"]
 			
 					
