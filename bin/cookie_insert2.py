@@ -145,7 +145,7 @@ def csv_Standard(file_name, ad_dict, cur,con, insert_interval = 1, print_interva
 			# to int handling is necessary.
 			adID = int(row_d["AdvertiserID"].replace("'",""))
 			if adID not in insert_d.keys():
-				adID = 0
+				adID = '0'
 			stmt = insert_d[adID]["stmt"]
 			
 					
@@ -231,7 +231,7 @@ def load_all_Standard(files_dir,cur,con,insert_interval = 1000):
 
 
 	ad_dict = get_ad_dict(cur)
-
+	print ad_dict
 	for f in files:
 		if "Standard" in f and f not in excludes:
 			ret = csv_Standard(files_dir + f, ad_dict,cur,con,insert_interval)
@@ -242,7 +242,7 @@ def load_all_Standard(files_dir,cur,con,insert_interval = 1000):
 def main():
 	con,cur = mysql_login.mysql_login()
 	con.autocommit(False)
-	
+#	match("/usr/local/var/ftp_sync/downloaded/Match/",cur)
 #	create_ad_tables(cur, True)	
 #	unzip_all("/usr/local/var/ftp_sync/downloaded/", "/usr/local/var/ftp_sync/downloaded/Standard/","Standard", cur)
 	cur.execute("USE DWA_SF_Cookie")
@@ -259,7 +259,6 @@ def main():
 	end = datetime.datetime.now()
 	print "inserting %s records at a time took %s seconds"%(1000, (end-start).seconds)
 		
-#	match("/usr/local/var/ftp_sync/downloaded/Match/",cur)
 
 
 
