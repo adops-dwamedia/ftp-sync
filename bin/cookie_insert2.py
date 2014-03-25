@@ -20,7 +20,7 @@ def get_ad_dict(cur):
 		ad_dict[adid] = "Std_"+n.replace(" ","_")
 	return ad_dict
 
-def match(match_path, cur, update_exclude = True):
+def match(match_path, cur, con,update_exclude = True):
 	cur.execute("SELECT filename FROM DWA_SF_Cookie.exclude_list")
 	excludes = [f[0] for f in cur.fetchall()]
 	for f in os.listdir(match_path):
@@ -55,7 +55,7 @@ def match(match_path, cur, update_exclude = True):
 		
 			# with table created, insert data. With ID as primary, 
 			# INSERT IGNORE ensures no duplication.
-			inStmt = "INSERT IGNORE INTO %s VALUES ("%tableName
+			inStmt = "INSERT IGNORE INTO SF_Match.%s VALUES ("%tableName
 			inStmt += "%s,"*len(head)
 			inStmt = inStmt[:-1] + ")"
 			
@@ -64,14 +64,14 @@ def match(match_path, cur, update_exclude = True):
 				row = line.split(",")
 				#print row
 				batchData.append(tuple(row))
-				
-			cur.executemany(inStmt, batchData)
+			cur.executemany(inStmt, batchData)	
+			con.commit()
 		if update_exclude:
 			last_slash = f.rfind("/")
 			if last_slash != -1:
 				f = f[last_slash+1:]
 			cur.execute("INSERT IGNORE INTO exclude_list VALUES ('%s')"%f)
-
+	con.commit()
 
 
 def ftp_sync(sync_dir):
@@ -258,6 +258,7 @@ def csv_Standard(file_name, ad_dict, cur,con, insert_interval = 1, print_interva
 
 def create_ad_tables(cur, drop=False):
 	ad_dict = get_ad_dict(cur)
+	print ad_dict
 	cur.execute("USE DWA_SF_Cookie")
 	for k, tblName in ad_dict.iteritems():
 		if drop:
@@ -336,10 +337,10 @@ def main():
 	con,cur = mysql_login.mysql_login()
 	con.autocommit(False)
 	
-	unzip_all("/usr/local/var/ftp_sync/downloaded/", cur)
-	match("/usr/local/var/ftp_sync/downloaded/Match/",cur)
+#	unzip_all("/usr/local/var/ftp_sync/downloaded/", cur)
+	match("/usr/local/var/ftp_sync/downloaded/Match/",cur,con)
 	create_ad_tables(cur, False)	
-
+#	partition_by_day("Std_Netsuite",cur, startDate = -90, endDate = 30)
 
 # 	Rich and Conversion files
 	load_all(["/usr/local/var/ftp_sync/downloaded/Conversion/","/usr/local/var/ftp_sync/downloaded/Rich/"],cur,con)
