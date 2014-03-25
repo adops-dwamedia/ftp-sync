@@ -13,134 +13,349 @@ filterwarnings('ignore', category = mdb.Warning)
 
 
 
+def get_ad_dict(cur):
+	cur.execute("SELECT AdvertiserName, AdvertiserID FROM SF_Match.Advertisers")
+	ad_dict = {}
+	for n, adid in cur.fetchall():
+		ad_dict[adid] = "Std_"+n.replace(" ","_")
+	return ad_dict
+
+def match(match_path, cur, con,update_exclude = True):
+	cur.execute("SELECT filename FROM DWA_SF_Cookie.exclude_list")
+	excludes = [f[0] for f in cur.fetchall()]
+	for f in os.listdir(match_path):
+		if re.search("^MM", f) and "CityMatchFile" not in f and f not in excludes:
+			tableName = re.sub("MM_CLD_Match_", "", f)
+			print "updating %s"%tableName
+			# Mediamind capitalizes its F's unpredictably
+			tableName = re.sub("Match[fF]ile.*", "", tableName) 
+		
+			# open file, read file, decode file, split by newline.
+			data = re.sub('"', "",open(match_path+f).read().decode("utf-8-sig")).splitlines()
+			data = [d.replace(u"\u2122","") for d in data]
+			head = data[0].split(",")
+			#d_stmt = "DROP TABLE IF EXISTS %s"%tableName 
+			stmt = "CREATE TABLE IF NOT EXISTS %s ("%tableName
+			# for each column, add an INT column if it is an ID, VARCHAR otherwise.		
+			for col in head:
+				col = re.sub('"', "", col) # strip quotes
+				# detect ID's, use as primary keys.
+				if re.match("ID", col):
+					
+					stmt += "%s INT ,"%col
+				else:
+					stmt += "%s VARCHAR(255),"%col
+			# get rid of last comma, add ending parens
+			stmt = stmt[:-1]+ ")"
+
+
+			#cur.execute(d_stmt)
+			cur.execute(stmt)
+		
+		
+			# with table created, insert data. With ID as primary, 
+			# INSERT IGNORE ensures no duplication.
+			inStmt = "INSERT IGNORE INTO SF_Match.%s VALUES ("%tableName
+			inStmt += "%s,"*len(head)
+			inStmt = inStmt[:-1] + ")"
+			
+			batchData = []
+			for line in data[1:]:
+				row = line.split(",")
+				#print row
+				batchData.append(tuple(row))
+			cur.executemany(inStmt, batchData)	
+			con.commit()
+		if update_exclude:
+			last_slash = f.rfind("/")
+			if last_slash != -1:
+				f = f[last_slash+1:]
+			cur.execute("INSERT IGNORE INTO exclude_list VALUES ('%s')"%f)
+	con.commit()
+
+
 def ftp_sync(sync_dir):
+	cur.execute("SELECT filename FROM exclude_list")
+	excludes = [f[0] for f in cur.fetchall()]
 	p1 = subprocess.Popen(['echo', "nlist" ], stdout= subprocess.PIPE)
 	server_files = subprocess.check_output(["ftp", "-p", "-i", "ftp.platform.mediamind.com"], stdin = p1.stdout).split()
-	local_files = subprocess.check_output(["ls", sync_dir]).split()
-#	print server_files
-#	print local_files
-	cmd = ""
-	for sf in server_files:
-		if sf not in local_files and "zip" in sf:
-			cmd += "get %s\n"%sf
-	cmd = "'" + cmd + "'"
-#	print cmd
-	p1 = subprocess.Popen(['echo', cmd], stdout=subprocess.PIPE)
-	p2 = subprocess.call(["ftp", "-p", "-i", "ftp.platform.mediamind.com"], stdin = p1.stdout)
+	
+	server_files = [f for f in server_files if f not in excludes]
+	for f in server_files:
+		subprocess.call(["wget", "-nc","--reject=done","-P%s"%sync_dir,"ftp://ftp.platform.mediamind.com/%s"%f])
 	return
 		
 	
-def get_Advertiser_dict(cur):
-        cur.execute("SELECT AdvertiserName, AdvertiserID FROM SF_Match.Advertisers")
-        advert = cur.fetchall()
-	adv_dict = {}
-	for a in advert:
-		tblName = "Std_"+a[0].replace(" ","_")
-		adv_dict[a[1]] = tblName
-	return adv_dict
-def create_Ad_Tables(cur):
-	cur.execute("SELECT AdvertiserName, AdvertiserID FROM SF_Match.Advertisers")
-	advert = cur.fetchall()
-	for a in advert:
-#		print a[0], a[1]
-		tableName0="Std_" + a[0].replace(" ", "_")
-		tableName="DWA_SF_Cookie." +  tableName0
-		# check if table exists:
-		cur.execute("SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME LIKE '%s'"%tableName0);
-		res = cur.fetchall()
-		if len(res) == 0:
-#			print "Creating table %s"%tableName
-			stmt1 = "CREATE TABLE IF NOT EXISTS %s"%tableName + " AS SELECT UserID, EventID, EventTypeID, STR_TO_DATE(EventDate, '%m/%d/%Y %h:%i:%s %p') AS EventDate, CampaignID, SiteID, PlacementID, IP, AdvertiserID,loadTime FROM DWA_SF_Cookie.Std_Akamai WHERE 1=0"
-			stmt2 = "ALTER TABLE %s ADD PRIMARY KEY(EventID)"%tableName
-			stmt3 = "ALTER TABLE %s ADD INDEX (UserID)"%tableName
-			stmt4 = "ALTER TABLE %s ADD INDEX (EventDate)"%tableName
-	
-			cur.execute(stmt1)
-			cur.execute(stmt2)
-			cur.execute(stmt3)
-			cur.execute(stmt4)
-		
-	return
-
-
-
-def csv_Standard(file_name, cur, tbl_dict={},key_pos=3):
+def partition_by_day(tblName,cur, startDate = -90, endDate = 30):
 	cur.execute("USE DWA_SF_Cookie")
-	# distributes csv file into various Std_CLIENT tables. requires dict and position in each csv line of ID that matches dict key.
-	keys_set = False
-	x = 0
-	with open(file_name,'r') as f:
-		stmt_dict = {}
-		line_i = 0
-		while True:
+	# ugly one liner to get list of dates
+	days = [str(datetime.date.today() + datetime.timedelta(days=x)) for x in range(-90,30)]
+
+
+	dates = []
+	stmt = "ALTER TABLE %s PARTITION BY RANGE Columns (EventDate) ("%tblName
+	for d in days:
+		stmt += "PARTITION `p%s` VALUES LESS THAN ('%s'), "%(d,d)
+	stmt += "PARTITION pMAX VALUES LESS THAN (MAXVALUE))"
+	cur.execute(stmt)
+		
+def csv_Import(file_name,cur,con, update_exclude=True):
+	if "Standard" in file_name:
+		return
+	col_names_set = False
+
+	for l in open(file_name,"r"):
+
+		vals = [i.replace("\r\n","") for i in l.split(",")]	
+
+		if not col_names_set:
+			col_names = vals
+			col_names_set = True
+		else:
+			row_d = {}
+			for i in range(len(vals)):
+				row_d[col_names[i]] = "'%s'"%vals[i]
+			# urls may contain ' chars. 
+			if "Referrer" in row_d.keys():
+				row_d["Referrer"] = "'%s'"%row_d["Referrer"].replace("'","")
+				for i in range(len(row_d["Referrer"])):
+					if row_d["Referrer"][i] in ["?",";"]:
+						row_d["Referrer"] = row_d["Referrer"][:i] + "'"
+						break					
+				
+				
+			if "Conversion" in file_name:
+				row_d['ConversionDate'] = "STR_TO_DATE(%s,'%%c/%%e/%%Y %%l:%%i:%%s %%p')"%row_d['ConversionDate']
+				stmt = "INSERT IGNORE INTO MM_Conversion" + \
+				"(UserID, ConversionID, ConversionDate, ConversionTagID, AdvertiserID, "+\
+				"Revenue, Quantity, OrderID, referrer, IP) VALUES ("
+				stmt_add = "%s,"*9 + "%s)"
+				stmt_add = stmt_add%(
+				row_d['UserID'], row_d['ConversionID'], row_d['ConversionDate'], 
+				row_d['ConversionTagID'], row_d['AdvertiserID'], row_d['Revenue'], 
+				row_d['Quantity'], row_d['OrderID'], row_d['Referrer'], row_d['IP'])
+
+								
+			if "Rich" in file_name:
+				row_d['InteractionDate'] = "STR_TO_DATE(%s,'%%c/%%e/%%Y %%l:%%i:%%s %%p')"%row_d['InteractionDate']
+				stmt = "INSERT IGNORE INTO MM_Rich" + \
+				"(EventID,UserID,EventTypeID,InteractionID,InteractionDuration,VideoAssetID, " +\
+				"InteractionDate,EntityID,PlacementID,SiteID,CampaignID,BrandID," +\
+				"AdvertiserID,AccountID,PCP) VALUES ("
+				stmt_add = "%s,"*14 + "%s)"
+				stmt_add = stmt_add%(row_d['EventID'], row_d['UserID'], 
+				row_d['EventTypeID'], row_d['InteractionID'], row_d['InteractionDuration'], 
+				row_d['VideoAssetID'], row_d['InteractionDate'], row_d['EntityID'], 
+				row_d['PlacementID'], row_d['SiteID'], row_d['CampaignID'], row_d['BrandID'], 
+				row_d['AdvertiserID'], row_d['AccountID'], row_d['PCP'])
+			stmt = stmt + stmt_add
+			cur.execute(stmt)				
+		
+	if update_exclude:
+		last_slash = file_name.rfind("/")
+		if last_slash != -1:
+			file_name = file_name[last_slash+1:] 
+		cur.execute("INSERT IGNORE INTO exclude_list VALUES ('%s')"%file_name)
+	
+	
+def csv_Standard(file_name, ad_dict, cur,con, insert_interval = 1, print_interval = 1000, update_exclude=True):
+	cur.execute("USE DWA_SF_Cookie")
+	# distribute Standard CSV file into DB tables for each Advertiser.
+
+	# initialize. col_names_set is variable to tell if we have loaded column names yet.
+	# line_i and start are vars for benchmarking.
+	 
+	col_names_set = False
+	line_i = 0
+	overall_start = datetime.datetime.now()
+	start = datetime.datetime.now()
+	#print "inserting from %s, printing times for insertion of %s records"%(file_name,insert_interval)
+	
+	# make a dict for insert statements. Each table keeps a running record of how many 
+	# records are currently loaded, along with the statment itself. If insert_interval
+	# is reached, stmt is executed.
+	
+	insert_d = {}
+	for id, name in ad_dict.iteritems():
+		insert_d[id] = {"tblName":name,"stmt":"","records":0}
+
+	for l in open(file_name,"r"):
+
+		vals = [i.replace("\r\n","") for i in l.split(",")]	
+
+		if not col_names_set:
+			col_names = vals
+			col_names_set = True
+		else:
+			# with keys set, make a dict of the line. A few ugly lines for URL/date weirdness.
+			row_d = {}
+			for i in range(len(vals)):
+				row_d[col_names[i]] = "'%s'"%vals[i]
+			# urls may contain ' chars. 
+			row_d["Referrer"] = "'%s'"%row_d["Referrer"].replace("'","")
+			row_d['EventDate'] = "STR_TO_DATE(%s,'%%c/%%e/%%Y %%l:%%i:%%s %%p')"%row_d['EventDate']
+			# remove query string from referrer - hunt for ? or ; chars and truncate string there.
+
+			for i in range(len(row_d["Referrer"])):
+				if row_d["Referrer"][i] in ["?",";"]:
+					row_d["Referrer"] = row_d["Referrer"][:i] + "'"
+					break
+
+			# with values loaded, detect which advertiser we have. Some unfortunate string
+			# to int handling is necessary.
+			adID = int(row_d["AdvertiserID"].replace("'",""))
+			if adID not in insert_d.keys():
+				adID = 0
+			stmt = insert_d[adID]["stmt"]
+			
+					
+	
+			# if statement is empty, initialize. Else just add to it.
+			if stmt == "": 
+				stmt = "INSERT IGNORE INTO %s "%insert_d[adID]["tblName"] + \
+				"(UserID, EventID, EventTypeID, EventDate, CampaignID, SiteID," + \
+				" PlacementID, IP, AdvertiserID,Referrer) VALUES "
+				
+			stmt_add = "(" + "%s,"*9 + "%s),"
+			stmt_add = stmt_add%(row_d['UserID'],row_d['EventID'], row_d['EventTypeID'], 
+			row_d['EventDate'], row_d['CampaignID'],row_d['SiteID'], 
+			row_d['PlacementID'], row_d['IP'], row_d['AdvertiserID'], row_d["Referrer"])
+			stmt += stmt_add	
+	
+			# increment records, check if execution is needed.
+			records = insert_d[adID]["records"] + 1
+			if records == insert_interval:
+				stmt = stmt[:-1] # remove trailing comma
+
+				# benchmarking:
+				time_elapsed = (datetime.datetime.now()-overall_start).seconds + 1 # avoid div by zero
+				records_per_second = line_i/time_elapsed
+				print "\t%s records from %s, %s records into %s: time: %s, %s records per sec"%(
+				line_i, file_name[-13:-4], records,insert_d[adID]["tblName"],time_elapsed, records_per_second)
+				
+				# reset
+				cur.execute(stmt)
+				stmt, records = "",0
+				
+			insert_d[adID]["stmt"], insert_d[adID]["records"] = stmt, records
 			line_i += 1
-			if line_i%10000 == 0: print line_i
-			vals = f.readline()
-			if vals is None or vals == "": break
-			vals = [i.replace("\r\n","") for i in vals.split(",")]	
-			if not keys_set:
-				col_names = vals
-				keys_set = True
-			else:
-				row_d = {}
-				for i in range(len(vals)):
-					row_d[col_names[i]] = "'%s'"%vals[i]
-				row_d['EventDate'] = "STR_TO_DATE(%s,'%%c/%%e/%%Y %%l:%%i:%%s %%p')"%row_d['EventDate']
-				if row_d['AdvertiserID'] not in stmt_dict.keys():
-					stmt = "INSERT IGNORE INTO %s (loadTime, UserID, EventID, EventTypeID, EventDate, CampaignID, SiteID, PlacementID, IP, AdvertiserID) VALUES "%tbl_dict[row_d['AdvertiserID'].replace("'","")]
-				else:
-					stmt = stmt_dict[row_d["AdvertiserID"]] + ","
-				stmt_add = "(NOW(), "+ "%s,"*9
-				stmt_add = stmt_add%(row_d['UserID'],row_d['EventID'], row_d['EventTypeID'], row_d['EventDate'], row_d['CampaignID'],row_d['SiteID'], row_d['PlacementID'], row_d['IP'], row_d['AdvertiserID'])
-				stmt += stmt_add[:-1]+")"
-				stmt_dict[row_d['AdvertiserID']] = stmt
-		print stmt_dict
-		for k, stmt in stmt_dict.iteritems():
-			try:
-				print stmt
-				cur.execute(stmt)	
-			except:
-				print "fail: %s"%stmt
-				return
+				
+	# done looping, execute all remaining statements.
+	for adID, vals in insert_d.iteritems():
+		stmt = vals["stmt"]
+		if stmt != "":
+			stmt = stmt[:-1]
+			cur.execute(stmt)	
+	if update_exclude:
+		last_slash = file_name.rfind("/")
+		if last_slash != -1:
+			file_name = file_name[last_slash+1:] 
+		cur.execute("INSERT IGNORE INTO exclude_list VALUES ('%s')"%file_name)
+			
 	return
-def remove_dups(tbl,dup_col, unique_col,cur):
-	# Dangerous. Removes duplicates of dup_col.
-	cur.execute("select %s FROM %s GROUP BY %s HAVING COUNT(*) > 1"%(dup_col,tbl,dup_col))
-	dup_vals = [d[0] for d in cur.fetchall()]
-	stmt = "CREATE TABLE tmp_dup_remove SELECT %s, %s FROM %s WHERE %s IN ("%(dup_col, unique_col, tbl, dup_col)
-	for d in dup_vals:
-		stmt += "'%s',"%d
-	stmt = stmt[:-1]+")"
-	cur.execute(stmt)
+	
 	
 
-	cur.execute("SELECT COUNT(*) FROM tmp_dup_remove")
-	before = cur.fetchall()[0]
+def create_ad_tables(cur, drop=False):
+	ad_dict = get_ad_dict(cur)
+	print ad_dict
+	cur.execute("USE DWA_SF_Cookie")
+	for k, tblName in ad_dict.iteritems():
+		if drop:
+			cur.execute("DROP TABLE IF EXISTS %s"%tblName)
+		stmt = "CREATE TABLE IF NOT EXISTS %s ("%tblName + \
+		"UserID char(36) NOT NULL," +\
+		"EventID char(36) NOT NULL," +\
+		"EventTypeID tinyint(4) NOT NULL," +\
+		"EventDate datetime NOT NULL," +\
+		"CampaignID mediumint(9) NOT NULL," +\
+		"SiteID int(11) NOT NULL DEFAULT 0," +\
+		"PlacementID int(11) NOT NULL DEFAULT 0," +\
+		"IP varchar(16) NOT NULL DEFAULT ''," +\
+		"AdvertiserID mediumint(9) NOT NULL DEFAULT 0,"+\
+		"Referrer varchar(255) NOT NULL DEFAULT '',"+\
+		"PRIMARY KEY (EventID, EventDate)," +\
+		"KEY userID (userID, EventDate)," +\
+		"KEY eventDate (eventDate))" 
+		cur.execute(stmt)
+		
+  
+def unzip_all(zip_dir, cur, add_to_exclude=True):
+	cur.execute("SELECT filename FROM exclude_list")
+	excludes = [x[0] for x in cur.fetchall()]
+	files = subprocess.check_output(["ls", "%s/"%zip_dir]).split()
+	files = [f for f in files if f[-3:] == "zip"]
+	for fileType in ["Rich", "Standard", "Conversion", "Match"]:
+		unzip_dir = zip_dir + "/%s/"%fileType
+		for f in files:
+			if f not in excludes and fileType in f:
+				unzipProc = subprocess.Popen(["unzip", "-u", zip_dir+f, "-d", unzip_dir],
+				stderr=subprocess.PIPE, stdout = subprocess.PIPE)
+				unzipOutput, unzipErr = unzipProc.communicate()
+				ret = unzipProc.returncode
+				
+				if ret == 0:
+					cur.execute("INSERT IGNORE INTO exclude_list VALUES ('%s')"%f)
+				if ret == 9:
+					print "%s does not appear to be a valid zipfile, delete from exclude_list"%f
+					cur.execute("DELETE FROM exclude_list WHERE filename = '%s'"%f)
 
-	stmt = "DELETE FROM tmp_dup_remove a WHERE (a.%s,a.%s) IN (SELECT min(b.%s), b.%s FROM tmp_dup_remove b GROUP BY b.%s)"%(unique_col,dup_col, unique_col,dup_col, dup_col)
-	print stmt
-	cur.execute(stmt)
-	cur.execute("SELECT COUNT(*) FROM tmp_dup_remove")	
-	after = cur.fetchall()[0]
+def load_all_Standard(files_dir,cur,con,insert_interval = 1000):
+	files = subprocess.check_output(["ls", files_dir]).split()	
+	cur.execute("SELECT filename FROM DWA_SF_Cookie.exclude_list")	
+	excludes = [x[0] for x in cur.fetchall()]	
 
-	print "found %s rows before, removed %s uniques, have %s left"%(before,len(dup_vals),after)
+	ad_dict = get_ad_dict(cur)
 	
-def update_all():
-	(file_ls,ftp_cmds) = get_ftp_commands()
-	get_ftp_data(ftp_cmds)
-def main():
-	con,cur = mysql_login.mysql_login()
-	adv_dict = get_Advertiser_dict(cur)
-	print adv_dict
-	con.autocommit(True)
-#	remove_dups("Std_Akamai", "eventID", "loadTime", cur)
-#	create_Ad_Tables(cur)	
-	files_dir = "/usr/local/var/ftp_sync/downloaded/Standard/"
-	files = subprocess.check_output(["ls", files_dir]).split()
-	print files
+	files = [f for f in files if "Standard" in f and f not in excludes]	
 	for f in files:
-		csv_Standard(files_dir + f, cur, adv_dict)
-	#ftp_sync("/usr/local/var/ftp_sync/downloaded")
+
+		ret = csv_Standard(files_dir + f, ad_dict,cur,con,insert_interval)
+		if ret is None:
+			cur.execute("INSERT IGNORE INTO exclude_list VALUES ('%s')"%f)
+			con.commit()			
+def load_all(files_dir, cur,con):
+	# allows for array of directories to be passed.	
+	if type(files_dir) is not list:
+		files_dir = [files_dir]
+
+	cur.execute("SELECT fileName from exclude_list")
+	excludes = [f[0] for f in cur.fetchall()]
+
+	for fd in files_dir:
+		files = subprocess.check_output(["ls", fd]).split()	
+		files = [f for f in files if f[-3:] == "csv" and f not in excludes]
+		for f in files:
+			print "\tinserting %s"%f
+			csv_Import(fd + f,cur,con, update_exclude=True)
+			con.commit()
+			
+				
+				
+def main():
+	start = datetime.datetime.now()
+	con,cur = mysql_login.mysql_login()
+	con.autocommit(False)
+	
+#	unzip_all("/usr/local/var/ftp_sync/downloaded/", cur)
+	match("/usr/local/var/ftp_sync/downloaded/Match/",cur,con)
+	create_ad_tables(cur, False)	
+#	partition_by_day("Std_Netsuite",cur, startDate = -90, endDate = 30)
+
+# 	Rich and Conversion files
+	load_all(["/usr/local/var/ftp_sync/downloaded/Conversion/","/usr/local/var/ftp_sync/downloaded/Rich/"],cur,con)
+	
+	# maintain_partitions
+
+
+	Std_dir = "/usr/local/var/ftp_sync/downloaded/Standard/"
+	load_all_Standard(Std_dir,cur,con, 1000)
+	end = datetime.datetime.now()
+	print "db updated in %s seconds"%(end-start).seconds
+		
+
+
+
 	if con:
 		con.commit()
 		con.close()		
