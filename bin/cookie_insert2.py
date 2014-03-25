@@ -36,7 +36,8 @@ def match(match_path, cur, update_exclude = True):
 			raw_data = re.sub('"', "",open(match_path+f).read().decode("utf-8-sig"))
 			data = ""
 			for d in raw_data:
-				data += d if d in string.printable or d in string.whitespace
+				if d in string.printable or d in string.whitespace
+					data += d 
 			data = data.split()
 			
 			
