@@ -20,9 +20,11 @@ def get_ad_dict(cur):
 		ad_dict[adid] = "Std_"+n.replace(" ","_")
 	return ad_dict
 
-def match(match_path, cur):
+def match(match_path, cur, update_exclude = True):
+	cur.execute("SELECT filename FROM DWA_SF_Cookie.exclude_list")
+	excludes = [f[0] for f in cur.fetchall()]
 	for f in os.listdir(match_path):
-		if re.search("^MM", f) and "CityMatchFile" not in f:
+		if re.search("^MM", f) and "CityMatchFile" not in f and f not in excludes:
 			tableName = re.sub("MM_CLD_Match_", "", f)
 			print "updating %s"%tableName
 			# Mediamind capitalizes its F's unpredictably
@@ -64,20 +66,23 @@ def match(match_path, cur):
 				batchData.append(tuple(row))
 				
 			cur.executemany(inStmt, batchData)
+		if update_exclude:
+			last_slash = f.rfind("/")
+			if last_slash != -1:
+				f = f[last_slash+1:]
+			cur.execute("INSERT IGNORE INTO exclude_list VALUES ('%s')"%f)
 
 
 
 def ftp_sync(sync_dir):
+	cur.execute("SELECT filename FROM exclude_list")
+	excludes = [f[0] for f in cur.fetchall()]
 	p1 = subprocess.Popen(['echo', "nlist" ], stdout= subprocess.PIPE)
 	server_files = subprocess.check_output(["ftp", "-p", "-i", "ftp.platform.mediamind.com"], stdin = p1.stdout).split()
-	local_files = subprocess.check_output(["ls", sync_dir]).split()
-	cmd = ""
-	for sf in server_files:
-		if sf not in local_files and "zip" in sf:
-			cmd += "get %s\n"%sf
-	cmd = "'" + cmd + "'"
-	p1 = subprocess.Popen(['echo', cmd], stdout=subprocess.PIPE)
-	p2 = subprocess.call(["ftp", "-p", "-i", "ftp.platform.mediamind.com"], stdin = p1.stdout)
+	
+	server_files = [f for f in server_files if f not in excludes]
+	for f in server_files:
+		subprocess.call(["wget", "-nc","--reject=done","-P%s"%sync_dir,"ftp://ftp.platform.mediamind.com/%s"%f])
 	return
 		
 	
@@ -94,17 +99,72 @@ def partition_by_day(tblName,cur, startDate = -90, endDate = 30):
 	stmt += "PARTITION pMAX VALUES LESS THAN (MAXVALUE))"
 	cur.execute(stmt)
 		
+def csv_Import(file_name,cur,con, update_exclude=True):
+	if "Standard" in file_name:
+		return
+	col_names_set = False
+
+	for l in open(file_name,"r"):
+
+		vals = [i.replace("\r\n","") for i in l.split(",")]	
+
+		if not col_names_set:
+			col_names = vals
+			col_names_set = True
+		else:
+			row_d = {}
+			for i in range(len(vals)):
+				row_d[col_names[i]] = "'%s'"%vals[i]
+			# urls may contain ' chars. 
+			if "Referrer" in row_d.keys():
+				row_d["Referrer"] = "'%s'"%row_d["Referrer"].replace("'","")
+				for i in range(len(row_d["Referrer"])):
+					if row_d["Referrer"][i] in ["?",";"]:
+						row_d["Referrer"] = row_d["Referrer"][:i] + "'"
+						break					
+				
+				
+			if "Conversion" in file_name:
+				row_d['ConversionDate'] = "STR_TO_DATE(%s,'%%c/%%e/%%Y %%l:%%i:%%s %%p')"%row_d['ConversionDate']
+				stmt = "INSERT IGNORE INTO MM_Conversion" + \
+				"(UserID, ConversionID, ConversionDate, ConversionTagID, AdvertiserID, "+\
+				"Revenue, Quantity, OrderID, referrer, IP) VALUES ("
+				stmt_add = "%s,"*9 + "%s)"
+				stmt_add = stmt_add%(
+				row_d['UserID'], row_d['ConversionID'], row_d['ConversionDate'], 
+				row_d['ConversionTagID'], row_d['AdvertiserID'], row_d['Revenue'], 
+				row_d['Quantity'], row_d['OrderID'], row_d['Referrer'], row_d['IP'])
+
+								
+			if "Rich" in file_name:
+				row_d['InteractionDate'] = "STR_TO_DATE(%s,'%%c/%%e/%%Y %%l:%%i:%%s %%p')"%row_d['InteractionDate']
+				stmt = "INSERT IGNORE INTO MM_Rich" + \
+				"(EventID,UserID,EventTypeID,InteractionID,InteractionDuration,VideoAssetID, " +\
+				"InteractionDate,EntityID,PlacementID,SiteID,CampaignID,BrandID," +\
+				"AdvertiserID,AccountID,PCP) VALUES ("
+				stmt_add = "%s,"*14 + "%s)"
+				stmt_add = stmt_add%(row_d['EventID'], row_d['UserID'], 
+				row_d['EventTypeID'], row_d['InteractionID'], row_d['InteractionDuration'], 
+				row_d['VideoAssetID'], row_d['InteractionDate'], row_d['EntityID'], 
+				row_d['PlacementID'], row_d['SiteID'], row_d['CampaignID'], row_d['BrandID'], 
+				row_d['AdvertiserID'], row_d['AccountID'], row_d['PCP'])
+			stmt = stmt + stmt_add
+			cur.execute(stmt)				
+		
+	if update_exclude:
+		last_slash = file_name.rfind("/")
+		if last_slash != -1:
+			file_name = file_name[last_slash+1:] 
+		cur.execute("INSERT IGNORE INTO exclude_list VALUES ('%s')"%file_name)
 	
 	
-	
-def csv_Standard(file_name, ad_dict, cur,con, insert_interval = 1, print_interval = 1000):
+def csv_Standard(file_name, ad_dict, cur,con, insert_interval = 1, print_interval = 1000, update_exclude=True):
 	cur.execute("USE DWA_SF_Cookie")
 	# distribute Standard CSV file into DB tables for each Advertiser.
 
 	# initialize. col_names_set is variable to tell if we have loaded column names yet.
 	# line_i and start are vars for benchmarking.
 	 
-	con.autocommit(False)
 	col_names_set = False
 	line_i = 0
 	overall_start = datetime.datetime.now()
@@ -186,6 +246,12 @@ def csv_Standard(file_name, ad_dict, cur,con, insert_interval = 1, print_interva
 		if stmt != "":
 			stmt = stmt[:-1]
 			cur.execute(stmt)	
+	if update_exclude:
+		last_slash = file_name.rfind("/")
+		if last_slash != -1:
+			file_name = file_name[last_slash+1:] 
+		cur.execute("INSERT IGNORE INTO exclude_list VALUES ('%s')"%file_name)
+			
 	return
 	
 	
@@ -213,51 +279,78 @@ def create_ad_tables(cur, drop=False):
 		cur.execute(stmt)
 		
   
-def unzip_all(zip_dir, unzip_dir, fileType, cur, add_to_exclude=True):
-        cur.execute("SELECT filename FROM exclude_list")
-        excludes = [x[0] for x in cur.fetchall()]
-	files = subprocess.check_output(["ls", zip_dir]).split()
-	for f in files:
-	#	print f
-		if f not in excludes and fileType in f:
-			ret = subprocess.call(["unzip", "-u", zip_dir+f, "-d", unzip_dir])
-			if ret == 0:
-				cur.execute("INSERT IGNORE INTO exclude_list VALUES ('%s')"%f)
+def unzip_all(zip_dir, cur, add_to_exclude=True):
+	cur.execute("SELECT filename FROM exclude_list")
+	excludes = [x[0] for x in cur.fetchall()]
+	files = subprocess.check_output(["ls", "%s/"%zip_dir]).split()
+	files = [f for f in files if f[-3:] == "zip"]
+	for fileType in ["Rich", "Standard", "Conversion", "Match"]:
+		unzip_dir = zip_dir + "/%s/"%fileType
+		for f in files:
+			if f not in excludes and fileType in f:
+				unzipProc = subprocess.Popen(["unzip", "-u", zip_dir+f, "-d", unzip_dir],
+				stderr=subprocess.PIPE, stdout = subprocess.PIPE)
+				unzipOutput, unzipErr = unzipProc.communicate()
+				ret = unzipProc.returncode
+				
+				if ret == 0:
+					cur.execute("INSERT IGNORE INTO exclude_list VALUES ('%s')"%f)
+				if ret == 9:
+					print "%s does not appear to be a valid zipfile, delete from exclude_list"%f
+					cur.execute("DELETE FROM exclude_list WHERE filename = '%s'"%f)
 
 def load_all_Standard(files_dir,cur,con,insert_interval = 1000):
 	files = subprocess.check_output(["ls", files_dir]).split()	
 	cur.execute("SELECT filename FROM DWA_SF_Cookie.exclude_list")	
 	excludes = [x[0] for x in cur.fetchall()]	
 
-
 	ad_dict = get_ad_dict(cur)
-	print ad_dict
-	for f in files:
-		if "Standard" in f and f not in excludes:
-			ret = csv_Standard(files_dir + f, ad_dict,cur,con,insert_interval)
-			if ret is None:
-				cur.execute("INSERT IGNORE INTO exclude_list VALUES ('%s')"%f)
-				con.commit()			
 	
+	files = [f for f in files if "Standard" in f and f not in excludes]	
+	for f in files:
+
+		ret = csv_Standard(files_dir + f, ad_dict,cur,con,insert_interval)
+		if ret is None:
+			cur.execute("INSERT IGNORE INTO exclude_list VALUES ('%s')"%f)
+			con.commit()			
+def load_all(files_dir, cur,con):
+	# allows for array of directories to be passed.	
+	if type(files_dir) is not list:
+		files_dir = [files_dir]
+
+	cur.execute("SELECT fileName from exclude_list")
+	excludes = [f[0] for f in cur.fetchall()]
+
+	for fd in files_dir:
+		files = subprocess.check_output(["ls", fd]).split()	
+		files = [f for f in files if f[-3:] == "csv" and f not in excludes]
+		for f in files:
+			print "\tinserting %s"%f
+			csv_Import(fd + f,cur,con, update_exclude=True)
+			con.commit()
+			
+				
+				
 def main():
+	start = datetime.datetime.now()
 	con,cur = mysql_login.mysql_login()
 	con.autocommit(False)
-#	match("/usr/local/var/ftp_sync/downloaded/Match/",cur)
-#	create_ad_tables(cur, True)	
-#	unzip_all("/usr/local/var/ftp_sync/downloaded/", "/usr/local/var/ftp_sync/downloaded/Standard/","Standard", cur)
-	cur.execute("USE DWA_SF_Cookie")
-	cur.execute("SHOW TABLES LIKE 'Std%'")
-	tbls = [t[0] for t in cur.fetchall()]
-#	for t in tbls:
-#		partition_by_day(t,cur)
-#	con.commit()		
-#	return
-	start = datetime.datetime.now()
+	
+	unzip_all("/usr/local/var/ftp_sync/downloaded/", cur)
+	match("/usr/local/var/ftp_sync/downloaded/Match/",cur)
+	create_ad_tables(cur, False)	
 
-	files_dir = "/usr/local/var/ftp_sync/downloaded/Standard/"
-	load_all_Standard(files_dir,cur,con, 1000)
+
+# 	Rich and Conversion files
+	load_all(["/usr/local/var/ftp_sync/downloaded/Conversion/","/usr/local/var/ftp_sync/downloaded/Rich/"],cur,con)
+	
+	# maintain_partitions
+
+
+	Std_dir = "/usr/local/var/ftp_sync/downloaded/Standard/"
+	load_all_Standard(Std_dir,cur,con, 1000)
 	end = datetime.datetime.now()
-	print "inserting %s records at a time took %s seconds"%(1000, (end-start).seconds)
+	print "db updated in %s seconds"%(end-start).seconds
 		
 
 
