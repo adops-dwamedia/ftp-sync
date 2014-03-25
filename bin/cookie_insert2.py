@@ -33,13 +33,7 @@ def match(match_path, cur, update_exclude = True):
 		
 		
 			# open file, read file, decode file, split by newline.
-			raw_data = re.sub('"', "",open(match_path+f).read().decode("utf-8-sig"))
-			data = ""
-			for d in raw_data:
-				if d in string.printable or d in string.whitespace
-					data += d 
-			data = data.split()
-			
+			data = re.sub('"', "",open(match_path+f).read().decode("utf-8-sig")).split
 			
 			
 			data = [d.replace(u"\u2122","") for d in data]
@@ -74,8 +68,11 @@ def match(match_path, cur, update_exclude = True):
 				row = line.split(",")
 				#print row
 				batchData.append(tuple(row))
-				
-			cur.executemany(inStmt, batchData)
+			try:		
+				cur.executemany(inStmt, batchData)
+			except:
+				print "%s matchfile failed"%f
+		
 		if update_exclude:
 			last_slash = f.rfind("/")
 			if last_slash != -1:
