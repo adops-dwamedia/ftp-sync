@@ -7,6 +7,7 @@ import sys
 import os
 import re
 import datetime
+import string
 import mysql_login
 from warnings import filterwarnings
 filterwarnings('ignore', category = mdb.Warning)
@@ -30,8 +31,16 @@ def match(match_path, cur, update_exclude = True):
 			# Mediamind capitalizes its F's unpredictably
 			tableName = re.sub("Match[fF]ile.*", "", tableName) 
 		
+		
 			# open file, read file, decode file, split by newline.
-			data = re.sub('"', "",open(match_path+f).read().decode("utf-8-sig")).splitlines()
+			raw_data = re.sub('"', "",open(match_path+f).read().decode("utf-8-sig"))
+			data = ""
+			for d in raw_data:
+				data += d if d in string.printable or d in string.whitespace
+			data = data.split()
+			
+			
+			
 			data = [d.replace(u"\u2122","") for d in data]
 			head = data[0].split(",")
 			#d_stmt = "DROP TABLE IF EXISTS %s"%tableName 
