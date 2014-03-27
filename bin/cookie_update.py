@@ -91,17 +91,48 @@ def ftp_sync(sync_dir,cur):
 		
 	
 def partition_by_day(tblName,cur, startDate = -90, endDate = 30):
+	# takes input tbl, and if it is not partitioned, partitions. Else, combine partitions for dates more 
+	# than startDate days old 
 	cur.execute("USE DWA_SF_Cookie")
 	# ugly one liner to get list of dates
 	days = [str(datetime.date.today() + datetime.timedelta(days=x)) for x in range(-90,30)]
 
+	# get current partitions
+	cur.execute("EXPLAIN PARTITIONS SELECT * FROM %s"%tblName)
+	parts = cur.fetchall()[0][3]
+	# if table is not partitioned yet
+	if parts is None:
+		print "yippee"
+		return
+		stmt = "ALTER TABLE %s PARTITION BY RANGE Columns (EventDate) ("%tblName
+		for d in days:
+			stmt += "PARTITION `p%s` VALUES LESS THAN ('%s'), "%(d,d)
+		stmt += "PARTITION pMAX VALUES LESS THAN (MAXVALUE))"
+		cur.execute(stmt)
+	else:
+		# update partitions. First, find old ones to consolidate.
+		old_partitions = parts.split(",")
+		new_partitions = ["p" + d for d in days] + ["pMAX"]
+		to_consolidate = [op for op in old_partitions if op not in new_partitions] + [new_partitions[0]]
 
-	dates = []
-	stmt = "ALTER TABLE %s PARTITION BY RANGE Columns (EventDate) ("%tblName
-	for d in days:
-		stmt += "PARTITION `p%s` VALUES LESS THAN ('%s'), "%(d,d)
-	stmt += "PARTITION pMAX VALUES LESS THAN (MAXVALUE))"
-	cur.execute(stmt)
+		if len(to_consolidate) > 1:
+			stmt = "ALTER TABLE %s REORGANIZE PARTITION "%tblName
+			for tc in to_consolidate:
+				stmt += "`%s`,"%tc
+			stmt = stmt[:-1] + " INTO ( PARTITION `%s` VALUES LESS THAN ('%s') )"%(to_consolidate[-1], to_consolidate[-1].replace("p",""))
+#			cur.execute(stmt)
+
+		# add partitions
+		to_add = [np for np in new_partitions if np not in old_partitions]
+		if len(to_add) > 0:
+			stmt = "ALTER TABLE %s REORGANIZE PARTITION pMAX INTO ("%tblName
+			for ta in to_add:
+				stmt += "PARTITION `%s` VALUES LESS THAN ('%s'),"%(ta, ta.replace("p",""))
+			stmt += "PARTITION pMAX VALUES LESS THAN (MAXVALUE))"
+			cur.execute(stmt)
+		return
+
+		 
 		
 def csv_Import(file_name,cur,con, update_exclude=True):
 	if "Standard" in file_name:
@@ -340,17 +371,14 @@ def main():
 	con,cur = mysql_login.mysql_login()
 	con.autocommit(False)
 	ftp_sync("/usr/local/var/ftp_sync/downloaded",cur)
-#	unzip_all("/usr/local/var/ftp_sync/downloaded/", cur)
+	unzip_all("/usr/local/var/ftp_sync/downloaded/", cur)
 	match("/usr/local/var/ftp_sync/downloaded/Match/",cur,con)
 	create_ad_tables(cur, False)	
-#	partition_by_day("Std_Netsuite",cur, startDate = -90, endDate = 30)
+	partition_by_day("Std_Netsuite",cur, startDate = -90, endDate = 30)
 
 # 	Rich and Conversion files
 	load_all(["/usr/local/var/ftp_sync/downloaded/Conversion/","/usr/local/var/ftp_sync/downloaded/Rich/"],cur,con)
 	
-	# maintain_partitions
-
-
 	Std_dir = "/usr/local/var/ftp_sync/downloaded/Standard/"
 	load_all_Standard(Std_dir,cur,con, 1000)
 	end = datetime.datetime.now()
@@ -362,4 +390,29 @@ def main():
 	if con:
 		con.commit()
 		con.close()		
+#main()
+def test():
+        start = datetime.datetime.now()
+        con,cur = mysql_login.mysql_login()
+        con.autocommit(False)
+        create_ad_tables(cur, False)
+	partition_by_day("Std_Netsuite",cur, startDate = -90, endDate = 30)
+	return
+#       Rich and Conversion files
+        load_all(["/usr/local/var/ftp_sync/downloaded/Conversion/","/usr/local/var/ftp_sync/downloaded/Rich/"],cur,con)
+
+        # maintain_partitions
+
+
+        Std_dir = "/usr/local/var/ftp_sync/downloaded/Standard/"
+        load_all_Standard(Std_dir,cur,con, 1000)
+        end = datetime.datetime.now()
+        print "db updated in %s seconds"%(end-start).seconds
+
+
+
+
+        if con:
+                con.commit()
+                con.close()
 main()
