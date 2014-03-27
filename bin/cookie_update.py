@@ -83,7 +83,8 @@ def ftp_sync(sync_dir,cur):
 	
 	server_files = [f for f in server_files if f not in excludes]
 	for f in server_files:
-		subprocess.call(["wget", "-nc","--reject=done","-P%s"%sync_dir,"ftp://ftp.platform.mediamind.com/%s"%f])
+		print "\tfetching %s"%f
+		subprocess.call(["wget", "-nc","--reject=done","-q","-P%s"%sync_dir,"ftp://ftp.platform.mediamind.com/%s"%f])
 	return
 		
 	
