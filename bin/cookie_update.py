@@ -75,16 +75,18 @@ def match(match_path, cur, con,update_exclude = True):
 
 
 def ftp_sync(sync_dir,cur):
+	print "syncing ftp server with %s..."%sync_dir
 	cur.execute("SELECT filename FROM exclude_list")
 	excludes = [f[0] for f in cur.fetchall()]
 	p1 = subprocess.Popen(['echo', "nlist" ], stdout= subprocess.PIPE)
 	server_files = subprocess.check_output(["ftp", "-p", "-i", "ftp.platform.mediamind.com"], stdin = p1.stdout).split()
-	server_files = [sf for sf in server_files if sf[-4:] != "done"]
+	server_files = [sf for sf in server_files if sf[-4:] != "done" and sf != "info"]
 	
 	server_files = [f for f in server_files if f not in excludes]
 	for f in server_files:
 		print "\tfetching %s"%f
 		subprocess.call(["wget", "-nc","--reject=done","-q","-P%s"%sync_dir,"ftp://ftp.platform.mediamind.com/%s"%f])
+	print "done."
 	return
 		
 	
