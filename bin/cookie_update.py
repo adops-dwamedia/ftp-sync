@@ -74,7 +74,7 @@ def match(match_path, cur, con,update_exclude = True):
 	con.commit()
 
 
-def ftp_sync(sync_dir):
+def ftp_sync(sync_dir,cur):
 	cur.execute("SELECT filename FROM exclude_list")
 	excludes = [f[0] for f in cur.fetchall()]
 	p1 = subprocess.Popen(['echo', "nlist" ], stdout= subprocess.PIPE)
@@ -335,7 +335,7 @@ def main():
 	start = datetime.datetime.now()
 	con,cur = mysql_login.mysql_login()
 	con.autocommit(False)
-	ftp_sync("/usr/local/var/ftp_sync/downloaded")
+	ftp_sync("/usr/local/var/ftp_sync/downloaded",cur)
 #	unzip_all("/usr/local/var/ftp_sync/downloaded/", cur)
 	match("/usr/local/var/ftp_sync/downloaded/Match/",cur,con)
 	create_ad_tables(cur, False)	
