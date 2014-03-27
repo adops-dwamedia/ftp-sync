@@ -258,7 +258,6 @@ def csv_Standard(file_name, ad_dict, cur,con, insert_interval = 1, print_interva
 
 def create_ad_tables(cur, drop=False):
 	ad_dict = get_ad_dict(cur)
-	print ad_dict
 	cur.execute("USE DWA_SF_Cookie")
 	for k, tblName in ad_dict.iteritems():
 		if drop:
@@ -336,7 +335,7 @@ def main():
 	start = datetime.datetime.now()
 	con,cur = mysql_login.mysql_login()
 	con.autocommit(False)
-	
+	ftp_sync("/usr/local/var/ftp_sync/downloaded")
 #	unzip_all("/usr/local/var/ftp_sync/downloaded/", cur)
 	match("/usr/local/var/ftp_sync/downloaded/Match/",cur,con)
 	create_ad_tables(cur, False)	
