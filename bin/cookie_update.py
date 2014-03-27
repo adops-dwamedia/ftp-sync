@@ -79,6 +79,7 @@ def ftp_sync(sync_dir,cur):
 	excludes = [f[0] for f in cur.fetchall()]
 	p1 = subprocess.Popen(['echo', "nlist" ], stdout= subprocess.PIPE)
 	server_files = subprocess.check_output(["ftp", "-p", "-i", "ftp.platform.mediamind.com"], stdin = p1.stdout).split()
+	server_files = [sf for sf in server_files if sf[-4:] != "done"]
 	
 	server_files = [f for f in server_files if f not in excludes]
 	for f in server_files:
