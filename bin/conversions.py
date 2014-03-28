@@ -14,6 +14,8 @@ filterwarnings('ignore', category = mdb.Warning)
 
 
 def initialize(cur,con):
+	print "\tchecking for missing tables..."
+	
 	# gather list of Std tables, gather list of conversion tables. If a conversion table 
 	# is missing, create it.
 	
@@ -29,6 +31,7 @@ def initialize(cur,con):
 	
 	for ctn in conv_tblNames:
 		if ctn not in std_conv_tbls:
+			print "\t\tCreating table %s"%ctn
 			stmt = "CREATE TABLE IF NOT EXISTS Std_FilterImps.%s ("%ctn + \
 			"UserID char(36) NOT NULL," +\
 			"EventID char(36) NOT NULL," +\
@@ -47,7 +50,9 @@ def initialize(cur,con):
 	#create table to be used later for excluding conversions from processing
 	cur.execute("CREATE TABLE IF NOT EXISTS conv_exclude_list(conversionID char(36) PRIMARY KEY)")
 	con.commit()
+	print "done."
 def update(cur,con, conv_interval=30, insert_interval = 1000):
+	print "\tupdating data for tables..."
 	# create a dict. key is AdvertiserID, include:
 	# 	Std table name
 	#	Std_Conv table name
@@ -59,7 +64,7 @@ def update(cur,con, conv_interval=30, insert_interval = 1000):
 		std_tblName = "Std_%s"%adName.replace(" ", "_")
 		conv_tblName = std_tblName.replace("Std_", "Std_Conv_")
 		
-		print "Updating %s"%conv_tblName
+		print "\t\tUpdating %s"%conv_tblName
 		ad_dict[id] = {
 			'std_tblName':std_tblName,
 			'conv_tblName':conv_tblName
@@ -107,9 +112,11 @@ def update(cur,con, conv_interval=30, insert_interval = 1000):
 				cur.executemany(insert_Stmt, to_insert[:1000])
 				to_insert = to_insert[1000:]
 			con.commit()
-			cur.execute("INSERT IGNORE INTO conv_exclude_list VALUES ('%s')"%ur[2])	
-				
-				
+			stmt = "INSERT IGNORE INTO conv_exclude_list (" +\
+			"SELECT ConversionID FROM DWA_SF_Cookie.MM_Conversion WHERE" +\
+			" userID = '%s' AND conversionDate < '%s')"%(ur[0], ur[1])
+			cur.execute(stmt)				
+			con.commit()
 
 		while len(to_insert) > insert_interval:
 			cur.executemany(insert_Stmt, to_insert[:1000])
@@ -118,6 +125,7 @@ def update(cur,con, conv_interval=30, insert_interval = 1000):
 		if len(to_insert) > 0:
 			cur.executemany(insert_Stmt, to_insert)
 		con.commit()
+	print "\tdone."
 	
 	
 	
@@ -135,6 +143,7 @@ def update(cur,con, conv_interval=30, insert_interval = 1000):
 
 
 def main():
+	print "Updating Std_FilterImps db..."
 	# create conversion tables if they do not exist.
 	# for each tbl, gather userID's of users who have converted or clicked
 	# insert ignore records of each userID into Std_Conversion table.
