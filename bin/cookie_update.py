@@ -331,7 +331,8 @@ def unzip_all(zip_dir, cur, add_to_exclude=True):
 				if ret == 0:
 					cur.execute("INSERT IGNORE INTO exclude_list VALUES ('%s')"%f)
 				if ret == 9:
-					print "%s does not appear to be a valid zipfile, delete from exclude_list"%f
+					print "%s does not appear to be a valid zipfile deleting file and entry in exclude_list"%f
+					subprocess.call(["rm", zipd_dir+f])
 					cur.execute("DELETE FROM exclude_list WHERE filename = '%s'"%f)
 
 def load_all_Standard(files_dir,cur,con,insert_interval = 1000):
