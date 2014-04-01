@@ -11,7 +11,10 @@ import mysql_login
 from warnings import filterwarnings
 filterwarnings('ignore', category = mdb.Warning)
 
-
+def initialize(cur,con):
+	cur.execute("CREATE TABLE IF NOT EXISTS DWA_SF_Cookie.exclude_list "+\
+	"(filename VARCHAR(255), timestamp DATETIME NOT NULL DEFAULT NOW(), PRIMARY KEY(filename))"
+	con.commit()
 
 def get_ad_dict(cur):
 	cur.execute("SELECT AdvertiserName, AdvertiserID FROM SF_Match.Advertisers")
@@ -22,6 +25,7 @@ def get_ad_dict(cur):
 
 def match(match_path, cur, con,update_exclude = True):
 	cur.execute("SELECT filename FROM DWA_SF_Cookie.exclude_list")
+	cur.execute("USE SF_Match")
 	excludes = [f[0] for f in cur.fetchall()]
 	for f in os.listdir(match_path):
 		if re.search("^MM", f) and "CityMatchFile" not in f and f not in excludes:
@@ -35,7 +39,7 @@ def match(match_path, cur, con,update_exclude = True):
 			data = [d.replace(u"\u2122","") for d in data]
 			head = data[0].split(",")
 			#d_stmt = "DROP TABLE IF EXISTS %s"%tableName 
-			stmt = "CREATE TABLE IF NOT EXISTS %s ("%tableName
+			stmt = "CREATE TABLE IF NOT EXISTS SF_Match.%s ("%tableName
 			# for each column, add an INT column if it is an ID, VARCHAR otherwise.		
 			for col in head:
 				col = re.sub('"', "", col) # strip quotes
@@ -70,7 +74,7 @@ def match(match_path, cur, con,update_exclude = True):
 			last_slash = f.rfind("/")
 			if last_slash != -1:
 				f = f[last_slash+1:]
-			cur.execute("INSERT IGNORE INTO exclude_list VALUES ('%s')"%f)
+			cur.execute("INSERT IGNORE INTO exclude_list (filename) VALUES ('%s')"%f)
 	con.commit()
 
 
@@ -190,7 +194,7 @@ def csv_Import(file_name,cur,con, update_exclude=True):
 		last_slash = file_name.rfind("/")
 		if last_slash != -1:
 			file_name = file_name[last_slash+1:] 
-		cur.execute("INSERT IGNORE INTO exclude_list VALUES ('%s')"%file_name)
+		cur.execute("INSERT IGNORE INTO exclude_list (filename) VALUES ('%s')"%file_name)
 	
 	
 def csv_Standard(file_name, ad_dict, cur,con, insert_interval = 1, print_interval = 1000, update_exclude=True):
@@ -285,7 +289,7 @@ def csv_Standard(file_name, ad_dict, cur,con, insert_interval = 1, print_interva
 		last_slash = file_name.rfind("/")
 		if last_slash != -1:
 			file_name = file_name[last_slash+1:] 
-		cur.execute("INSERT IGNORE INTO exclude_list VALUES ('%s')"%file_name)
+		cur.execute("INSERT IGNORE INTO exclude_list (filename) VALUES ('%s')"%file_name)
 			
 	return
 	
@@ -329,9 +333,9 @@ def unzip_all(zip_dir, cur, add_to_exclude=True):
 				ret = unzipProc.returncode
 				
 				if ret == 0:
-					cur.execute("INSERT IGNORE INTO exclude_list VALUES ('%s')"%f)
+					cur.execute("INSERT IGNORE INTO exclude_list (filename) VALUES ('%s')"%f)
 				if ret == 9:
-					print "%s does not appear to be a valid zipfile deleting file and entry in exclude_list"%f
+					print "%s does not appear to be a valid zipfile. Deleting file and entry in exclude_list"%f
 					subprocess.call(["rm", zip_dir+f])
 					cur.execute("DELETE FROM exclude_list WHERE filename = '%s'"%f)
 
@@ -347,7 +351,7 @@ def load_all_Standard(files_dir,cur,con,insert_interval = 1000):
 
 		ret = csv_Standard(files_dir + f, ad_dict,cur,con,insert_interval)
 		if ret is None:
-			cur.execute("INSERT IGNORE INTO exclude_list VALUES ('%s')"%f)
+			cur.execute("INSERT IGNORE INTO exclude_list (filename) VALUES ('%s')"%f)
 			con.commit()			
 def load_all(files_dir, cur,con):
 	# allows for array of directories to be passed.	
@@ -370,6 +374,7 @@ def load_all(files_dir, cur,con):
 def main():
 	start = datetime.datetime.now()
 	con,cur = mysql_login.mysql_login()
+	initialize(cur,con)
 	con.autocommit(False)
 	ftp_sync("/usr/local/var/ftp_sync/downloaded",cur)
 	unzip_all("/usr/local/var/ftp_sync/downloaded/", cur)
