@@ -13,7 +13,7 @@ filterwarnings('ignore', category = mdb.Warning)
 
 def initialize(cur,con):
 	cur.execute("CREATE TABLE IF NOT EXISTS DWA_SF_Cookie.exclude_list "+\
-	"(filename VARCHAR(255), timestamp DATETIME NOT NULL DEFAULT NOW(), PRIMARY KEY(filename))"
+	"(filename VARCHAR(255), ts TIMESTAMP NOT NULL DEFAULT NOW(), PRIMARY KEY(filename))"
 	con.commit()
 
 def get_ad_dict(cur):
