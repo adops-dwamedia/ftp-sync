@@ -380,7 +380,7 @@ def main():
 	unzip_all("/usr/local/var/ftp_sync/downloaded/", cur)
 	match("/usr/local/var/ftp_sync/downloaded/Match/",cur,con)
 	create_ad_tables(cur, False)	
-	partition_by_day("Std_Netsuite",cur, startDate = -90, endDate = 30)
+	partition_by_day("Std_Netsuite",cur, startDate = -120, endDate = 30)
 
 # 	Rich and Conversion files
 	load_all(["/usr/local/var/ftp_sync/downloaded/Conversion/","/usr/local/var/ftp_sync/downloaded/Rich/"],cur,con)
