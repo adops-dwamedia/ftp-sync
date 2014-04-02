@@ -173,4 +173,3 @@ def main():
 	
 	initialize(cur,con)
 	update(cur,con)
-main()

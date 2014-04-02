@@ -421,4 +421,3 @@ def test():
         if con:
                 con.commit()
                 con.close()
-main()

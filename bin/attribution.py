@@ -7,6 +7,7 @@ import sys
 import os
 import re
 import datetime
+import cookie_update
 import mysql_login
 from warnings import filterwarnings
 filterwarnings('ignore', category = mdb.Warning)
@@ -24,10 +25,12 @@ def initialize(cur,con):
 	models = ["last_imp", "first_imp"]
 
 	for m in models:
-		stmt = "CREATE TABLE IF NOT EXISTS %s (convID CHAR(36), convDate DATETIME, "%m +\
+		tblName = "attribution.%s"%m
+		stmt = "CREATE TABLE IF NOT EXISTS %s (convID CHAR(36), convDate DATETIME, "%tblName +\
 		"eventID CHAR(36), value FLOAT,"
 		stmt += "PRIMARY KEY (convID, convDate))"
 		
+		partition_by_day(tblName,cur, startDate = -90, endDate = 30)
 		cur.execute(stmt)
 		
 # data gatherers		
@@ -147,4 +150,3 @@ def main():
         if con:
                 con.commit()
                 con.close()
-main()
