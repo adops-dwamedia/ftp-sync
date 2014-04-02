@@ -107,7 +107,7 @@ def calculate_all(cur,con, conversion_window = 30):
 		models[k]['insert_stmt'] = models[k]['base_insert_stmt']
 		models[k]['conversions'] = get_conversions(cur,con, k)
 		models[k]['total_records'] = len(models[k]['conversions'])
-		modles[k]['records'] = 0
+		models[k]['records'] = 0
 			
 	ad_dict = get_ad_dict(cur)
 	for k,v_d in models.iteritems():
@@ -118,15 +118,15 @@ def calculate_all(cur,con, conversion_window = 30):
 			if len(d['events']) == 0: continue
 		
 			for eID, val in v_d['function'](d):
-				v_d['insert_stmt'] += "('%s','%s','%s','%s')"%convID, convDate,eID,val
+				v_d['insert_stmt'] += "('%s','%s','%s','%s'),"%(convID, convDate,eID,val)
 				v_d['records'] += 1
-				if v_d%100 == 0:
+				if v_d['records']%100 == 0:
 					cur.execute(v_d['insert_stmt'][:-1])
 					v_d['insert_stmt'] = v_d['base_insert_stmt']
-					print "\t\t%si of %s conversions processed, %s percent"%(v_d['records'],v_d['total_records'], int(100.0*v_d['records']/v_d['total_records']))
+					print "\t\t%s of %s conversions processed, %s percent"%(v_d['records'],v_d['total_records'], int(100.0*v_d['records']/v_d['total_records']))
 					
-			if v_d['insert_stmt'][-7:] != "VALUES " > 0:
-				cur.execute(insert_stmt[:-1])
+		if v_d['insert_stmt'][-7:] != "VALUES " > 0:
+			cur.execute(v_d['insert_stmt'][:-1])
 	
 
 
