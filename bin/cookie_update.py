@@ -74,13 +74,13 @@ def match(match_path, cur, con,update_exclude = True):
 			last_slash = f.rfind("/")
 			if last_slash != -1:
 				f = f[last_slash+1:]
-			cur.execute("INSERT IGNORE INTO exclude_list (filename) VALUES ('%s')"%f)
+			cur.execute("INSERT IGNORE INTO DWA_SF_Cookie.exclude_list (filename) VALUES ('%s')"%f)
 	con.commit()
 
 
 def ftp_sync(sync_dir,cur):
 	print "syncing ftp server with %s..."%sync_dir
-	cur.execute("SELECT filename FROM exclude_list")
+	cur.execute("SELECT filename FROM DWA_SF_Cookie.exclude_list")
 	excludes = [f[0] for f in cur.fetchall()]
 	p1 = subprocess.Popen(['echo', "nlist" ], stdout= subprocess.PIPE)
 	server_files = subprocess.check_output(["ftp", "-p", "-i", "ftp.platform.mediamind.com"], stdin = p1.stdout).split()
@@ -194,7 +194,7 @@ def csv_Import(file_name,cur,con, update_exclude=True):
 		last_slash = file_name.rfind("/")
 		if last_slash != -1:
 			file_name = file_name[last_slash+1:] 
-		cur.execute("INSERT IGNORE INTO exclude_list (filename) VALUES ('%s')"%file_name)
+		cur.execute("INSERT IGNORE INTO DWA_SF_Cookie.exclude_list (filename) VALUES ('%s')"%file_name)
 	
 	
 def csv_Standard(file_name, ad_dict, cur,con, insert_interval = 1, print_interval = 1000, update_exclude=True):
@@ -289,7 +289,7 @@ def csv_Standard(file_name, ad_dict, cur,con, insert_interval = 1, print_interva
 		last_slash = file_name.rfind("/")
 		if last_slash != -1:
 			file_name = file_name[last_slash+1:] 
-		cur.execute("INSERT IGNORE INTO exclude_list (filename) VALUES ('%s')"%file_name)
+		cur.execute("INSERT IGNORE INTO DWA_SF_Cookie.exclude_list (filename) VALUES ('%s')"%file_name)
 			
 	return
 	
@@ -319,7 +319,7 @@ def create_ad_tables(cur, drop=False):
 		
   
 def unzip_all(zip_dir, cur, add_to_exclude=True):
-	cur.execute("SELECT filename FROM exclude_list")
+	cur.execute("SELECT filename FROM DWA_SF_Cookie.exclude_list")
 	excludes = [x[0] for x in cur.fetchall()]
 	files = subprocess.check_output(["ls", "%s/"%zip_dir]).split()
 	files = [f for f in files if f[-3:] == "zip"]
@@ -333,11 +333,11 @@ def unzip_all(zip_dir, cur, add_to_exclude=True):
 				ret = unzipProc.returncode
 				
 				if ret == 0:
-					cur.execute("INSERT IGNORE INTO exclude_list (filename) VALUES ('%s')"%f)
+					cur.execute("INSERT IGNORE INTO DWA_SF_Cookie.exclude_list (filename) VALUES ('%s')"%f)
 				if ret == 9:
-					print "%s does not appear to be a valid zipfile. Deleting file and entry in exclude_list"%f
+					print "%s does not appear to be a valid zipfile. Deleting file and entry in DWA_SF_Cookie.exclude_list"%f
 					subprocess.call(["rm", zip_dir+f])
-					cur.execute("DELETE FROM exclude_list WHERE filename = '%s'"%f)
+					cur.execute("DELETE FROM DWA_SF_Cookie.exclude_list WHERE filename = '%s'"%f)
 
 def load_all_Standard(files_dir,cur,con,insert_interval = 1000):
 	files = subprocess.check_output(["ls", files_dir]).split()	
@@ -351,14 +351,14 @@ def load_all_Standard(files_dir,cur,con,insert_interval = 1000):
 
 		ret = csv_Standard(files_dir + f, ad_dict,cur,con,insert_interval)
 		if ret is None:
-			cur.execute("INSERT IGNORE INTO exclude_list (filename) VALUES ('%s')"%f)
+			cur.execute("INSERT IGNORE INTO DWA_SF_Cookie.exclude_list (filename) VALUES ('%s')"%f)
 			con.commit()			
 def load_all(files_dir, cur,con):
 	# allows for array of directories to be passed.	
 	if type(files_dir) is not list:
 		files_dir = [files_dir]
 
-	cur.execute("SELECT fileName from exclude_list")
+	cur.execute("SELECT fileName from DWA_SF_Cookie.exclude_list")
 	excludes = [f[0] for f in cur.fetchall()]
 
 	for fd in files_dir:
