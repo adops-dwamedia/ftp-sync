@@ -25,12 +25,13 @@ def get_ad_dict(cur):
 
 def match(match_path, cur, con,update_exclude = True):
 	cur.execute("SELECT filename FROM DWA_SF_Cookie.exclude_list")
-	cur.execute("USE SF_Match")
 	excludes = [f[0] for f in cur.fetchall()]
+	cur.execute("USE SF_Match")
 	for f in os.listdir(match_path):
 		if re.search("^MM", f) and "CityMatchFile" not in f and f not in excludes:
+			print "\tupdating %s"%f
+
 			tableName = re.sub("MM_CLD_Match_", "", f)
-			print "updating %s"%tableName
 			# Mediamind capitalizes its F's unpredictably
 			tableName = re.sub("Match[fF]ile.*", "", tableName) 
 		
@@ -94,7 +95,7 @@ def ftp_sync(sync_dir,cur):
 	return
 		
 	
-def partition_by_day(tblName,cur, startDate = -90, endDate = 30):
+def partition_by_day(tblName,cur, col="EventDate",startDate = -90, endDate = 30):
 	# takes input tbl, and if it is not partitioned, partitions. Else, combine partitions for dates more 
 	# than startDate days old 
 	cur.execute("USE DWA_SF_Cookie")
@@ -106,9 +107,7 @@ def partition_by_day(tblName,cur, startDate = -90, endDate = 30):
 	parts = cur.fetchall()[0][3]
 	# if table is not partitioned yet
 	if parts is None:
-		print "yippee"
-		return
-		stmt = "ALTER TABLE %s PARTITION BY RANGE Columns (EventDate) ("%tblName
+		stmt = "ALTER TABLE %s PARTITION BY RANGE Columns (%s) ("%(tblName,col)
 		for d in days:
 			stmt += "PARTITION `p%s` VALUES LESS THAN ('%s'), "%(d,d)
 		stmt += "PARTITION pMAX VALUES LESS THAN (MAXVALUE))"

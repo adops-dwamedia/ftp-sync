@@ -30,7 +30,7 @@ def initialize(cur,con):
 		"eventID CHAR(36), value FLOAT,"
 		stmt += "PRIMARY KEY (convID, convDate))"
 		
-		partition_by_day(tblName,cur, startDate = -90, endDate = 30)
+		cookie_update.partition_by_day(tblName,cur,col="convDate",startDate = -90, endDate = 30)
 		cur.execute(stmt)
 		
 # data gatherers		
@@ -97,6 +97,7 @@ def insert_smt(cur,con,insert_stmt, base_stmt, records, total_records, insert_in
 		return stmt, records +1
 
 def calculate_all(cur,con, conversion_window = 30):
+	cur.execute("USE attribution")
 	# gather global functions
 	global last_imp
 
