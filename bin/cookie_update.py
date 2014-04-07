@@ -165,13 +165,51 @@ def csv_Import(file_name,cur,con, update_exclude=True):
 			if "Conversion" in file_name:
 				row_d['ConversionDate'] = "STR_TO_DATE(%s,'%%c/%%e/%%Y %%l:%%i:%%s %%p')"%row_d['ConversionDate']
 				stmt = "INSERT IGNORE INTO MM_Conversion" + \
-				"(UserID, ConversionID, ConversionDate, ConversionTagID, AdvertiserID, "+\
-				"Revenue, Quantity, OrderID, referrer, IP) VALUES ("
-				stmt_add = "%s,"*9 + "%s)"
+				"(UserID, " +\
+				"ConversionID, " +\
+				"ConversionDate, " +\
+				"ConversionTagID, " +\
+				"AdvertiserID, " +\
+				"Revenue, " +\
+				"Quantity, " +\
+				"OrderID, " +\
+				"referrer, " +\
+				"IP, " +\
+				"WinnerEntityID, " +\
+				"PlacementID, " +\
+				"SiteID, " +\
+				"CampaignID, " +\
+				"AdGroupID, " +\
+				"EventTypeID, " +\
+				"String1, " +\
+				"String2, " +\
+				"String3, " +\
+				"String4, " +\
+				"String5) VALUES ("
+				stmt_add = "%s,"*20 + "%s)"
 				stmt_add = stmt_add%(
-				row_d['UserID'], row_d['ConversionID'], row_d['ConversionDate'], 
-				row_d['ConversionTagID'], row_d['AdvertiserID'], row_d['Revenue'], 
-				row_d['Quantity'], row_d['OrderID'], row_d['Referrer'], row_d['IP'])
+				row_d['UserID'], 
+				row_d['ConversionID'], 
+				row_d['ConversionDate'], 
+				row_d['ConversionTagID'], 
+				row_d['AdvertiserID'], 
+				row_d['Revenue'], 
+				row_d['Quantity'], 
+				row_d['OrderID'], 
+				row_d['Referrer'], 
+				row_d['IP'],
+				row_d['WinnerEntityID'],
+				row_d['PlacementID'],
+				row_d['SiteID'],
+				row_d['CampaignID'],
+				row_d['AdGroupID'],
+				row_d['EventTypeID'],
+				row_d['String1'],
+				row_d['String2'],
+				row_d['String3'],
+				row_d['String4'],
+				row_d['String5']
+				)
 
 								
 			if "Rich" in file_name:
@@ -381,7 +419,7 @@ def main():
 	create_ad_tables(cur, False)	
 	partition_by_day("Std_Netsuite",cur, startDate = -120, endDate = 30)
 
-# 	Rich and Conversion files
+#	Rich and Conversion files
 	load_all(["/usr/local/var/ftp_sync/downloaded/Conversion/","/usr/local/var/ftp_sync/downloaded/Rich/"],cur,con)
 	
 	Std_dir = "/usr/local/var/ftp_sync/downloaded/Standard/"
@@ -395,28 +433,3 @@ def main():
 	if con:
 		con.commit()
 		con.close()		
-#main()
-def test():
-        start = datetime.datetime.now()
-        con,cur = mysql_login.mysql_login()
-        con.autocommit(False)
-        create_ad_tables(cur, False)
-	partition_by_day("Std_Netsuite",cur, startDate = -90, endDate = 30)
-	return
-#       Rich and Conversion files
-        load_all(["/usr/local/var/ftp_sync/downloaded/Conversion/","/usr/local/var/ftp_sync/downloaded/Rich/"],cur,con)
-
-        # maintain_partitions
-
-
-        Std_dir = "/usr/local/var/ftp_sync/downloaded/Standard/"
-        load_all_Standard(Std_dir,cur,con, 1000)
-        end = datetime.datetime.now()
-        print "db updated in %s seconds"%(end-start).seconds
-
-
-
-
-        if con:
-                con.commit()
-                con.close()
