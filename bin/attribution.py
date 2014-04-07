@@ -29,9 +29,9 @@ def initialize(cur,con):
 		stmt = "CREATE TABLE IF NOT EXISTS %s (convID CHAR(36), convDate DATETIME, "%tblName +\
 		"eventID CHAR(36), value FLOAT,"
 		stmt += "PRIMARY KEY (convID, convDate))"
+		cur.execute(stmt)
 		
 		cookie_update.partition_by_day(tblName,cur,col="convDate",startDate = -90, endDate = 30)
-		cur.execute(stmt)
 		
 # data gatherers		
 def get_events(convID, convDate, adID, userID, cur,con):
@@ -151,3 +151,4 @@ def main():
         if con:
                 con.commit()
                 con.close()
+
