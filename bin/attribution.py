@@ -91,6 +91,7 @@ def last_imp(d):
 def insert_smt(cur,con,insert_stmt, base_stmt, records, total_records, insert_interval = 100, verbose = True):
 	if records%insert_interval == 0:
 		cur.execute(stmt)
+		con.commit()
 		print "\t\t%s of %s records processed, %s percent"%(records, total_records, records*100.0/total_records)
 		return base_stmt,records + 1
 	else:
