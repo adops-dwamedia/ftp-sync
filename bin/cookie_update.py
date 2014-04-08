@@ -1,3 +1,4 @@
+
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
@@ -12,8 +13,89 @@ from warnings import filterwarnings
 filterwarnings('ignore', category = mdb.Warning)
 
 def initialize(cur,con):
+	cur.execute("CREATE DATABASE IF NOT EXISTS DWA_SF_Cookie")
+	cur.execute("USE DWA_SF_Cookie")
+	
+	# SF_Match needs to be initialized as well
+	# configure FTP??
+	
 	cur.execute("CREATE TABLE IF NOT EXISTS DWA_SF_Cookie.exclude_list "+\
 	"(filename VARCHAR(255), ts TIMESTAMP NOT NULL DEFAULT NOW(), PRIMARY KEY(filename))")
+	
+	
+	conv_stmt = "CREATE TABLE IF NOT EXISTS `MM_Conversion` (" +\
+	"`userID` char(36) NOT NULL DEFAULT ''," +\
+	"`ConversionID` char(36) NOT NULL DEFAULT ''," +\
+	"`ConversionDate` datetime NOT NULL," +\
+	"`ConversionTagID` varchar(9) DEFAULT NULL," +\
+	"`AdvertiserID` int(11) DEFAULT NULL," +\
+	"`Revenue` decimal(19,4) DEFAULT NULL," +\
+	"`Quantity` int(11) DEFAULT NULL," +\
+	"`OrderID` varchar(5) DEFAULT NULL," +\
+	"`referrer` varchar(255) DEFAULT NULL," +\
+	"`IP` varchar(15) DEFAULT NULL," +\
+	"`PlacementID` varchar(255) DEFAULT NULL," +\
+	"`SiteID` varchar(255) DEFAULT NULL," +\
+	"`CampaignID` varchar(255) DEFAULT NULL," +\
+	"`AdGroupID` varchar(255) DEFAULT NULL," +\
+	"`String1` varchar(255) DEFAULT NULL," +\
+	"`String2` varchar(255) DEFAULT NULL," +\
+	"`String3` varchar(255) DEFAULT NULL," +\
+	"`String4` varchar(255) DEFAULT NULL," +\
+	"`String5` varchar(255) DEFAULT NULL," +\
+	"`WinnerEntityID` varchar(255) DEFAULT NULL," +\
+	"`EventTypeID` tinyint(4) DEFAULT NULL," +\
+	"PRIMARY KEY (`ConversionID`)," +\
+	"KEY `ConversionDate` (`ConversionDate`))"
+
+	cur.execute(conv_stmt)
+	
+	rich_stmt = "CREATE TABLE IF NOT EXISTS`MM_Rich` (" +\
+	"`EventID` char(36) NOT NULL DEFAULT ''," +\
+	"`UserID` char(36) NOT NULL DEFAULT ''," +\
+	"`EventTypeID` tinyint(4) DEFAULT NULL," +\
+	"`InteractionID` char(36) DEFAULT NULL," +\
+	"`InteractionDuration` varchar(4) DEFAULT NULL," +\
+	"`VideoAssetID` varchar(55) DEFAULT NULL," +\
+	"`InteractionDate` varchar(255) DEFAULT NULL," +\
+	"`EntityID` int(11) DEFAULT NULL," +\
+	"`PlacementID` varchar(11) DEFAULT NULL," +\
+	"`SiteID` varchar(11) DEFAULT NULL," +\
+	"`CampaignID` varchar(11) DEFAULT NULL," +\
+	"`BrandID` varchar(11) DEFAULT NULL," +\
+	"`AdvertiserID` int(11) DEFAULT NULL," +\
+	"`AccountID` int(11) DEFAULT NULL," +\
+	"`PCP` varchar(55) DEFAULT NULL," +\
+	"PRIMARY KEY (`EventID`,`UserID`)" +\
+	") ENGINE=InnoDB DEFAULT CHARSET=latin1"
+	
+	cur.execute(rich_stmt)
+	
+	
+	ad_dict = get_ad_dict(cur)
+	for k,tblName in ad_dict.iteritems():
+		tbl_stmt = "CREATE TABLE IF NOT EXISTS %s ("%tblName +\
+		"`UserID` char(36) NOT NULL," +\
+		"`EventID` char(36) NOT NULL," +\
+		"`EventTypeID` tinyint(4) NOT NULL," +\
+		"`EventDate` datetime NOT NULL," +\
+		"`CampaignID` mediumint(9) NOT NULL," +\
+		"`SiteID` int(11) NOT NULL DEFAULT '0'," +\
+		"`EntityID` int(11) NOT NULL DEFAULT '0'," +\
+		"`PlacementID` int(11) NOT NULL DEFAULT '0'," +\
+		"`IP` varchar(16) NOT NULL DEFAULT ''," +\
+		"`AdvertiserID` mediumint(9) NOT NULL DEFAULT '0'," +\
+		"`Referrer` varchar(255) NOT NULL DEFAULT ''," +\
+		"PRIMARY KEY (`EventID`,`EventDate`)," +\
+		"KEY `userID` (`UserID`,`EventDate`)," +\
+		"KEY `eventDate` (`EventDate`)" +\
+		") ENGINE=InnoDB DEFAULT CHARSET=utf8"
+		cur.execute(tbl_stmt)
+		partition_by_day(tblName,cur, startDate = -120, endDate = 30)
+		
+		
+	
+	
 	con.commit()
 
 def get_ad_dict(cur):
@@ -215,15 +297,39 @@ def csv_Import(file_name,cur,con, update_exclude=True):
 			if "Rich" in file_name:
 				row_d['InteractionDate'] = "STR_TO_DATE(%s,'%%c/%%e/%%Y %%l:%%i:%%s %%p')"%row_d['InteractionDate']
 				stmt = "INSERT IGNORE INTO MM_Rich" + \
-				"(EventID,UserID,EventTypeID,InteractionID,InteractionDuration,VideoAssetID, " +\
-				"InteractionDate,EntityID,PlacementID,SiteID,CampaignID,BrandID," +\
-				"AdvertiserID,AccountID,PCP) VALUES ("
+				"(EventID, " +\
+				"UserID, " +\
+				"EventTypeID, " +\
+				"InteractionID, " +\
+				"InteractionDuration, " +\
+				"VideoAssetID, " +\
+				"InteractionDate, " +\
+				"EntityID, " +\
+				"PlacementID, " +\
+				"SiteID, " +\
+				"CampaignID, " +\
+				"BrandID," +\
+				"AdvertiserID, " +\
+				"AccountID, " +\
+				"PCP) " +\
+				"VALUES ("
 				stmt_add = "%s,"*14 + "%s)"
-				stmt_add = stmt_add%(row_d['EventID'], row_d['UserID'], 
-				row_d['EventTypeID'], row_d['InteractionID'], row_d['InteractionDuration'], 
-				row_d['VideoAssetID'], row_d['InteractionDate'], row_d['EntityID'], 
-				row_d['PlacementID'], row_d['SiteID'], row_d['CampaignID'], row_d['BrandID'], 
-				row_d['AdvertiserID'], row_d['AccountID'], row_d['PCP'])
+				stmt_add = stmt_add%(
+				row_d['EventID'],
+				row_d['UserID'], 
+				row_d['EventTypeID'],
+				row_d['InteractionID'],
+				row_d['InteractionDuration'],
+				row_d['VideoAssetID'],
+				row_d['InteractionDate'],
+				row_d['EntityID'],
+				row_d['PlacementID'],
+				row_d['SiteID'],
+				row_d['CampaignID'],
+				row_d['BrandID'],
+				row_d['AdvertiserID'],
+				row_d['AccountID'],
+				row_d['PCP'])
 			stmt = stmt + stmt_add
 			cur.execute(stmt)				
 		
@@ -289,13 +395,30 @@ def csv_Standard(file_name, ad_dict, cur,con, insert_interval = 1, print_interva
 			# if statement is empty, initialize. Else just add to it.
 			if stmt == "": 
 				stmt = "INSERT IGNORE INTO %s "%insert_d[adID]["tblName"] + \
-				"(UserID, EventID, EventTypeID, EventDate, CampaignID, SiteID," + \
-				" PlacementID, IP, AdvertiserID,Referrer) VALUES "
+				"(UserID, " + \
+				"EventID, " + \
+				"EventTypeID, " + \
+				"EventDate, " + \
+				"EntityID, " +\
+				"CampaignID, " + \
+				"SiteID," + \
+				"PlacementID, " + \
+				"IP, "+ \
+				"AdvertiserID,"  + \
+				"Referrer) VALUES "
 				
-			stmt_add = "(" + "%s,"*9 + "%s),"
-			stmt_add = stmt_add%(row_d['UserID'],row_d['EventID'], row_d['EventTypeID'], 
-			row_d['EventDate'], row_d['CampaignID'],row_d['SiteID'], 
-			row_d['PlacementID'], row_d['IP'], row_d['AdvertiserID'], row_d["Referrer"])
+			stmt_add = "(" + "%s,"*10 + "%s),"
+			stmt_add = stmt_add%(row_d['UserID'],
+			row_d['EventID'],
+			row_d['EventTypeID'],
+			row_d['EventDate'],
+			row_d['EntityID'],
+			row_d['CampaignID'],
+			row_d['SiteID'],
+			row_d['PlacementID'],
+			row_d['IP'],
+			row_d['AdvertiserID'],
+			row_d["Referrer"])
 			stmt += stmt_add	
 	
 			# increment records, check if execution is needed.
@@ -432,4 +555,6 @@ def main():
 
 	if con:
 		con.commit()
-		con.close()		
+		con.close()	
+		
+		
