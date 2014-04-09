@@ -13,7 +13,10 @@ def db_connect(user,pw,db="",host="localhost"):
 
 # get db handle: 
         try:
-                con = mdb.connect(host, user, pw, db)
+		if db == "":
+                	con = mdb.connect(host, user, pw)
+		else: 
+			con = mdb.connect(host, user, pw, db)
                 cur = con.cursor()
                 return con,cur
         except mdb.Error, e:
@@ -36,6 +39,5 @@ def mysql_login():
                         user = o[1]
                 elif o[0] == "-p":
                         pw = o[1]
-
         con,cur = db_connect(user,pw,db,host)
         return con,cur
