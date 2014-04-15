@@ -444,7 +444,12 @@ def csv_Standard(file_name, ad_dict, cur,con, insert_interval = 1, print_interva
 		stmt = vals["stmt"]
 		if stmt != "":
 			stmt = stmt[:-1]
-			cur.execute(stmt)	
+			try:
+				cur.execute(stmt)	
+			except Exception as e:
+				print "stmt failed: %s"%stmt
+				raise e
+				
 	if update_exclude:
 		last_slash = file_name.rfind("/")
 		if last_slash != -1:
@@ -454,29 +459,6 @@ def csv_Standard(file_name, ad_dict, cur,con, insert_interval = 1, print_interva
 	return
 	
 	
-
-def create_ad_tables(cur, drop=False):
-	ad_dict = get_ad_dict(cur)
-	cur.execute("USE DWA_SF_Cookie")
-	for k, tblName in ad_dict.iteritems():
-		if drop:
-			cur.execute("DROP TABLE IF EXISTS %s"%tblName)
-		stmt = "CREATE TABLE IF NOT EXISTS %s ("%tblName + \
-		"UserID char(36) NOT NULL," +\
-		"EventID char(36) NOT NULL," +\
-		"EventTypeID tinyint(4) NOT NULL," +\
-		"EventDate datetime NOT NULL," +\
-		"CampaignID mediumint(9) NOT NULL," +\
-		"SiteID int(11) NOT NULL DEFAULT 0," +\
-		"PlacementID int(11) NOT NULL DEFAULT 0," +\
-		"IP varchar(16) NOT NULL DEFAULT ''," +\
-		"AdvertiserID mediumint(9) NOT NULL DEFAULT 0,"+\
-		"Referrer varchar(255) NOT NULL DEFAULT '',"+\
-		"PRIMARY KEY (EventID, EventDate)," +\
-		"KEY userID (userID, EventDate)," +\
-		"KEY eventDate (eventDate))" 
-		cur.execute(stmt)
-		
   
 def unzip_all(zip_dir, cur, add_to_exclude=True):
 	cur.execute("SELECT filename FROM DWA_SF_Cookie.exclude_list")
@@ -534,12 +516,11 @@ def load_all(files_dir, cur,con):
 def main():
 	start = datetime.datetime.now()
 	con,cur = mysql_login.mysql_login()
-	initialize(cur,con)
 	con.autocommit(False)
 	ftp_sync("/usr/local/var/ftp_sync/downloaded",cur)
 	unzip_all("/usr/local/var/ftp_sync/downloaded/", cur)
 	match("/usr/local/var/ftp_sync/downloaded/Match/",cur,con)
-	create_ad_tables(cur, False)	
+	initialize(cur,con)
 	partition_by_day("Std_Netsuite",cur, startDate = -120, endDate = 30)
 
 #	Rich and Conversion files
