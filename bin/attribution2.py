@@ -26,7 +26,7 @@ def initialize(cur,con):
 
 	stmt = "CREATE TABLE IF NOT EXISTS attribution (convID CHAR(36), modelID TINYINT,  eventID CHAR(36), value FLOAT, PRIMARY KEY(convID, modelID, eventID))"
 	cur.execute(stmt)
-	stmt = "CREATE TABLE IF NOT EXISTS MODELS(modelName VARCHAR(255), modelID TINYINT, PRIMARY KEY (modelID))"
+	stmt = "CREATE TABLE IF NOT EXISTS MODELS(modelName VARCHAR(255), modelID TINYINT, UNIQUE KEY (modelID))"
 	cur.execute(stmt)
 		
 # data gatherers		
@@ -110,7 +110,7 @@ def calculate_all(cur,con, conversion_window = 30):
 			numb_processed += len(records)
 			cur.executemany(base_insert_stmt, records)
 			records = []
-			print "%s processed, %s%%"%(numb_processed, round(numb_processed*100.0/numb_records))
+			print "%s processed\t%s%%"%(numb_processed, round(numb_processed*100.0/numb_records))
 	
 
 
