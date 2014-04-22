@@ -9,7 +9,7 @@ import re
 import datetime
 import mysql_login
 import cookie_update
-import attribution
+import attribution2
 import conversions
 
 
@@ -18,4 +18,4 @@ filterwarnings('ignore', category = mdb.Warning)
 
 
 cookie_update.main()
-#attribution.main()
+attribution2.main()
