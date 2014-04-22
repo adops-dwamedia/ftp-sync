@@ -521,7 +521,7 @@ def main():
 	unzip_all("/usr/local/var/ftp_sync/downloaded/", cur)
 	match("/usr/local/var/ftp_sync/downloaded/Match/",cur,con)
 	initialize(cur,con)
-	partition_by_day("Std_Netsuite",cur, startDate = -120, endDate = 30)
+	partition_by_day("MM_Rich",cur, col="InteractionDate",startDate = -120, endDate = 30)
 
 #	Rich and Conversion files
 	load_all(["/usr/local/var/ftp_sync/downloaded/Conversion/","/usr/local/var/ftp_sync/downloaded/Rich/"],cur,con)
