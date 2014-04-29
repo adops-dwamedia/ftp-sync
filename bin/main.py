@@ -18,4 +18,4 @@ filterwarnings('ignore', category = mdb.Warning)
 
 
 cookie_update.main()
-attribution2.main()
+#attribution2.main()

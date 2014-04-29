@@ -19,7 +19,8 @@ def get_ad_dict(cur):
 		ad_dict[adid] = "DWA_SF_Cookie.Std_"+n.replace(" ","_")
 	return ad_dict
 
-def initialize(cur,con):
+def initialize(cur,con, verbose=False):
+	if verbose: print "\tInitializing tables. . ."
 	cur.execute("CREATE DATABASE IF NOT EXISTS attribution")
 	cur.execute("USE attribution")
 	models = ["last_imp", "first_imp"]
@@ -28,7 +29,7 @@ def initialize(cur,con):
 		tblName = "attribution.%s"%m
 		stmt = "CREATE TABLE IF NOT EXISTS %s (convID CHAR(36), convDate DATETIME, "%tblName +\
 		"eventID CHAR(36), value FLOAT,"
-		stmt += "PRIMARY KEY (convID, convDate))"
+		stmt += "PRIMARY KEY (convID, eventID, convDate))"
 		cur.execute(stmt)
 		
 		cookie_update.partition_by_day(tblName,cur,col="convDate",startDate = -90, endDate = 30)
@@ -60,13 +61,15 @@ def get_events(convID, convDate, adID, userID, cur,con):
 		
 	return conv_d
 	
-def get_conversions(cur,con,exclude_tblName = None):
+def get_conversions(cur,con,exclude_tblName = None, test_mode = True):
 	""" gathers conversions not already in tblName """
 	stmt = "SELECT conversionID, userID, conversionDate, AdvertiserID " +\
-	"FROM DWA_SF_Cookie.MM_Conversion" 
-	
+	"FROM DWA_SF_Cookie.MM_Conversion"  
+	print stmt	
 	if exclude_tblName is not None:
 		stmt += " WHERE conversionID NOT IN (SELECT convID FROM %s)"%exclude_tblName
+	if test_mode:
+		stmt += " order by conversionDate DESC LIMIT 200"
 	cur.execute(stmt)
 	return cur.fetchall()
 
@@ -88,16 +91,17 @@ def last_imp(d):
 	winner = min(d['events'], key=lambda e: d['conversionDate'] - e['eventDate'])
 	return 	[[winner['eventID'],1]]
 		 
-def insert_smt(cur,con,insert_stmt, base_stmt, records, total_records, insert_interval = 100, verbose = True):
+def insert_smt(cur,con,insert_stmt, base_stmt, records, total_records, insert_interval = 100, verbose = False):
 	if records%insert_interval == 0:
 		cur.execute(stmt)
 		con.commit()
-		print "\t\t%s of %s records processed, %s percent"%(records, total_records, records*100.0/total_records)
+		print "\t\t\t%s of %s records processed, %s percent"%(records, total_records, records*100.0/total_records)
 		return base_stmt,records + 1
 	else:
 		return stmt, records +1
 
-def calculate_all(cur,con, conversion_window = 30):
+def calculate_all(cur,con, conversion_window = 30, verbose=False):
+	if verbose: print "\tupdating attribution tables. . ."
 	cur.execute("USE attribution")
 	# gather global functions
 	global last_imp
@@ -108,6 +112,7 @@ def calculate_all(cur,con, conversion_window = 30):
 			"base_insert_stmt": "INSERT IGNORE INTO last_imp (convID, convDate, eventID, value) VALUES "
 			}
 		}
+	if verbose: print "\t\tgathering conversions. . . "
 	for k in models.keys():
 		models[k]['insert_stmt'] = models[k]['base_insert_stmt']
 		models[k]['conversions'] = get_conversions(cur,con, k)
@@ -116,12 +121,14 @@ def calculate_all(cur,con, conversion_window = 30):
 			
 	ad_dict = get_ad_dict(cur)
 	for k,v_d in models.iteritems():
+		if verbose: print "\t\tupdating %s. . ."%k
 		for convID, userID, convDate, AdID in v_d['conversions']:
 			d = get_events(convID, convDate, AdID, userID, cur,con)
 			d = prune_by_window(d, 30)
 			d = prune_by_eventType(d,1)
 			if len(d['events']) == 0: continue
-		
+			
+			# v_d['function'] calls attribution function, which may return a single result or set of results.	
 			for eID, val in v_d['function'](d):
 				v_d['insert_stmt'] += "('%s','%s','%s','%s'),"%(convID, convDate,eID,val)
 				v_d['records'] += 1
@@ -140,11 +147,14 @@ def calculate_all(cur,con, conversion_window = 30):
 	
 
 def main():
+	print "update attribution database. . . "
         start = datetime.datetime.now()
         con,cur = mysql_login.mysql_login()
         con.autocommit(False)
-	initialize(cur,con)
-	calculate_all(cur,con)
+	initialize(cur,con, verbose=True)
+	con.commit()
+	sys.exit(1)
+	calculate_all(cur,con,verbose=True)
 
 
 
@@ -152,4 +162,4 @@ def main():
         if con:
                 con.commit()
                 con.close()
-
+main()

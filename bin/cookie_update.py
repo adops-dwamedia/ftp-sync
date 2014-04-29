@@ -94,6 +94,14 @@ def initialize(cur,con):
 		partition_by_day(tblName,cur, startDate = -120, endDate = 30)
 		
 		
+	# create union all view
+	cur.execute("SHOW TABLES LIKE '%%Std'")
+	stmt = "CREATE VIEW MM_Standard AS "
+	for tbl in [res for res[0] in results if res[0] != "MM_Standard"]:
+		stmt += "SELECT * FROM %s UNION ALL "%tbl
+	stmt = stmt[:-10]
+	cur.execute(stmt)
+	
 	
 	
 	con.commit()
