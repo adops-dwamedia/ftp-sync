@@ -9,7 +9,7 @@ import re
 import datetime
 import mysql_login
 import cookie_update
-import attribution2
+#import attribution2
 import conversions
 
 
