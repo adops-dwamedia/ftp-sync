@@ -66,10 +66,10 @@ def initialize(cur,con):
 	"`AdvertiserID` int(11) DEFAULT NULL," +\
 	"`AccountID` int(11) DEFAULT NULL," +\
 	"`PCP` varchar(55) DEFAULT NULL," +\
-	"PRIMARY KEY (`EventID`,`UserID`)" +\
+	"PRIMARY KEY (`EventID`,`UserID`, `InteractionDate`)" +\
 	") ENGINE=InnoDB DEFAULT CHARSET=latin1"
 	
-	cur.execute(rich_stmt)
+#	cur.execute(rich_stmt)
 	
 	
 	ad_dict = get_ad_dict(cur)
@@ -95,9 +95,10 @@ def initialize(cur,con):
 		
 		
 	# create union all view
-	cur.execute("SHOW TABLES LIKE '%%Std'")
-	stmt = "CREATE VIEW MM_Standard AS "
-	for tbl in [res for res[0] in results if res[0] != "MM_Standard"]:
+	cur.execute("SHOW TABLES LIKE '%%Std%%'")
+	results = [t[0] for t in cur.fetchall()]
+	stmt = "CREATE OR REPLACE VIEW MM_Standard AS "
+	for tbl in [res for res in results]:
 		stmt += "SELECT * FROM %s UNION ALL "%tbl
 	stmt = stmt[:-10]
 	cur.execute(stmt)
@@ -529,7 +530,7 @@ def main():
 	unzip_all("/usr/local/var/ftp_sync/downloaded/", cur)
 	match("/usr/local/var/ftp_sync/downloaded/Match/",cur,con)
 	initialize(cur,con)
-	partition_by_day("MM_Rich",cur, col="InteractionDate",startDate = -120, endDate = 30)
+	#partition_by_day("MM_Rich",cur, col="InteractionDate",startDate = -120, endDate = 30)
 
 #	Rich and Conversion files
 	load_all(["/usr/local/var/ftp_sync/downloaded/Conversion/","/usr/local/var/ftp_sync/downloaded/Rich/"],cur,con)
