@@ -29,7 +29,6 @@ def mysql_login():
         optlist, args = getopt.getopt(args, 'u:h:d:p:')
         host="localhost"
         db=""
-
         for o in optlist:
                 if o[0] == "-h":
                         host = o[1]
@@ -39,5 +38,11 @@ def mysql_login():
                         user = o[1]
                 elif o[0] == "-p":
                         pw = o[1]
-        con,cur = db_connect(user,pw,db,host)
+	if len(args) > 0 and db == "":
+		db = args[0]
+	try:	
+		con,cur = db_connect(user,pw,db,host)
+	except:
+		print "Error logging in to MySQL, did you enter credentials?"
+		sys.exit(1)
         return con,cur

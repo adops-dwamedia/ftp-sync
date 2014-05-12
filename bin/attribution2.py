@@ -19,17 +19,41 @@ def get_ad_dict(cur):
 		ad_dict[adid] = "DWA_SF_Cookie.Std_"+n.replace(" ","_")
 	return ad_dict
 
-def initialize(cur,con):
+def initialize(cur,con, verbose=False):
+	if verbose: print "\tinitializing attribution db. . . "
 	cur.execute("CREATE DATABASE IF NOT EXISTS attribution")
 	cur.execute("USE attribution")
-	models = ["last_imp", "first_imp"]
+	models = [
+		{"name":"last_imp","function":last_imp, "id":1}, 
+		{"name":"first_imp","function":first_imp, "id":2},
+		{"name":"equal_imp", "function":equal_imp, "id":3}
+		]
 
-	stmt = "CREATE TABLE IF NOT EXISTS attribution (convID CHAR(36), modelID TINYINT,  eventID CHAR(36), value FLOAT, PRIMARY KEY(convID, modelID, eventID))"
+	stmt = "CREATE TABLE IF NOT EXISTS attribution (convID CHAR(36), modelID TINYINT,  winnerEventID CHAR(36), value FLOAT, description VARCHAR(255), PRIMARY KEY(convID, modelID, winnerEventID))"
 	cur.execute(stmt)
-	stmt = "CREATE TABLE IF NOT EXISTS MODELS(modelName VARCHAR(255), modelID TINYINT, UNIQUE KEY (modelID))"
+	stmt = "CREATE TABLE IF NOT EXISTS models(modelName VARCHAR(255), modelID TINYINT, UNIQUE KEY (modelID))"
 	cur.execute(stmt)
+	
+	for m in models:
+		stmt = "INSERT IGNORE INTO models (modelName, modelID) VALUES ('%s',%s)"%(m["name"], m["id"])
+		cur.execute(stmt)
+"""
+convert model into a class.
+
+class model
+	id
+	name
+	pruning function
+	winner calculating function
+"""
+
+
+
+	
+# data gatherers	
+def reset(cur,con):
+	cur.execute("DROP DATABASE IF EXISTS attribution")
 		
-# data gatherers		
 def get_events(convID, convDate, adID, userID, cur,con):
 	ad_dict = get_ad_dict(cur)
 
@@ -56,10 +80,13 @@ def get_events(convID, convDate, adID, userID, cur,con):
 		
 	return conv_d
 	
-def get_conversions(cur,con,exclude_tblName = None):
+def get_conversions(cur,con,exclude_tblName = None, debug = False):
 	""" gathers conversions not already in tblName """
 	stmt = "SELECT conversionID, userID, conversionDate, AdvertiserID " +\
 	"FROM DWA_SF_Cookie.MM_Conversion" 
+
+	if debug:
+		stmt += " ORDER BY conversionDate DESC LIMIT 100"
 	
 	cur.execute(stmt)
 	return cur.fetchall()
@@ -81,39 +108,65 @@ def prune_by_eventType(conv_d,eventType):
 def last_imp(d):
 	winner = min(d['events'], key=lambda e: d['conversionDate'] - e['eventDate'])
 	return 	[[winner['eventID'],1]]
+def first_imp(d):
+	winner = max(d['events'], key=lambda e: d['conversionDate'] - e['eventDate'])
+	return 	[[winner['eventID'],1]]
+def equal_imp(d):
+	vals = 1.0/len(d['events'])
+	winners = []
+	for w in d['events']:
+		winners.append([w['eventID'], vals])
+	return winners	
+
 		 
-def calculate_all(cur,con, conversion_window = 30):
+def calculate_all(cur,con, conversion_window = 30, debug=False, verbose=False):
 	cur.execute("USE attribution")
 	# gather global functions
 	global last_imp
+	global first_imp
 
+	# to be defined upstream from here
 	models = {
 		"last_imp":{
 			"function":last_imp, 
 			"modelID":1,
+			},
+		"first_imp":{
+			"function":first_imp,
+			"modelID":2,
+			},
+		"equal_imp":{
+			"function":equal_imp,
+			"modelID":3,
 			}
 		}
-	conversions = get_conversions(cur,con)	
+	if verbose: print "\t Gathering conversion data. . ."
+	conversions = get_conversions(cur,con, debug=debug)
+	if verbose: print "\t Conversion data gathered.	"
 	ad_dict = get_ad_dict(cur)
-	base_insert_stmt = "INSERT IGNORE INTO attribution (convID, modelID, eventID, value) VALUES (%s,%s,%s,%s)"
+	base_insert_stmt = "INSERT IGNORE INTO attribution (convID, modelID, winnerEventID, value) VALUES (%s,%s,%s,%s)"
 	records = []
 	numb_records = len(conversions)
 	numb_processed = 0
+	print_threshold = .1	
+
 	for convID, userID, convDate, AdID in conversions:
 		d = get_events(convID, convDate, AdID, userID, cur,con)
 		d = prune_by_window(d, 30)
-		if len(d['events']) == 0: continue
+		if len(d['events']) == 0: continue # if no events for conversion, move on
 		for k,v_d in models.iteritems():
 			for eID, val in v_d['function'](d):
 				records.append((convID, v_d['modelID'],eID,val))
 		if len(records) > 100:
-			numb_processed += len(records)
 			cur.executemany(base_insert_stmt, records)
 			records = []
-			print "%s processed\t%s%%"%(numb_processed, round(numb_processed*100.0/numb_records))
+		numb_processed += 1
+		if numb_processed*1.0/numb_records > print_threshold:
+			print "\t%s records processed, %s%%"%(numb_processed, numb_processed*100.0/numb_records)
+			print_threshold += .1	
 	
-
-
+	if verbose: print "\tcleaning up. . ."
+	if len(records) > 0:	cur.executemany(base_insert_stmt,records)
 	
 
 	
@@ -121,9 +174,18 @@ def calculate_all(cur,con, conversion_window = 30):
 def main():
         start = datetime.datetime.now()
         con,cur = mysql_login.mysql_login()
+	reset(cur,con)
         con.autocommit(False)
-	initialize(cur,con)
-	calculate_all(cur,con)
+	cur.execute("USE DWA_SF_Cookie")
+        cur.execute("SHOW TABLES LIKE '%%Std'") 
+        stmt = "CREATE VIEW MM_Standard AS "
+        for tbl in [res for res[0] in results if res[0] != "MM_Standard"]:
+                stmt += "SELECT * FROM %s UNION ALL "%tbl
+        stmt = stmt[:-10]
+        cur.execute(stmt)
+
+	initialize(cur,con, verbose=True)
+	calculate_all(cur,con, debug=True, verbose=True)
 
 
 
@@ -131,4 +193,4 @@ def main():
         if con:
                 con.commit()
                 con.close()
-
+main()
