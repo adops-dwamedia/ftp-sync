@@ -160,8 +160,12 @@ def match(match_path, cur, con,update_exclude = True):
 				row = line.split(",")
 				#print row
 				batchData.append(tuple(row))
-			cur.executemany(inStmt, batchData)	
-			con.commit()
+			try:
+				cur.executemany(inStmt, batchData)	
+				con.commit()
+			except:
+				# ugh this is lazy but occassionaly match data is malformed
+				print "\terror processing matchfile %s"%f
 		if update_exclude:
 			last_slash = f.rfind("/")
 			if last_slash != -1:
