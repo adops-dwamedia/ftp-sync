@@ -69,7 +69,6 @@ def update_partitions(table,col,cur):
 			stmt = stmt[:-1] + ")"
 			print stmt
 			cur.execute(stmt)
-update_partitions("test.test", "to_days(d)", cur)
 
 
 	

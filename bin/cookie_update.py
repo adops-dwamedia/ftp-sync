@@ -526,7 +526,7 @@ def load_all(files_dir, cur,con):
 			
 				
 				
-def main():
+if __name__ == "__main__":
 	start = datetime.datetime.now()
 	con,cur = mysql_login.mysql_login()
 	con.autocommit(False)
