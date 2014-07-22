@@ -14,7 +14,7 @@ filterwarnings('ignore', category = mdb.Warning)
 
 
 
-def partitionDrop(d,db,cur):
+def partitionDrop(cur,db = "DWA_SF_Cookie",d = datetime.date.today() - datetime.timedelta(days = 30*6)):
 	if type(d) == datetime.date:
 		d = d.timetuple()
 
@@ -39,10 +39,9 @@ def partitionDrop(d,db,cur):
 				stmt = "alter table %s drop partition `%s`"%(t, k)
 				cur.execute(stmt)
 
-def drop_raw_files(data_dir = "/usr/local/var/ftp_sync/downloaded", cutoff_date = datetime.date.today() - datetime.timedelta(days = 39)):
+def drop_raw_files(data_dir = "/usr/local/var/ftp_sync/downloaded", cutoff_date = datetime.date.today() - datetime.timedelta(days = 30*6)):
 	if type(cutoff_date) == datetime.date:
 		cutoff_date = cutoff_date.timetuple()
-	print cutoff_data
 	files = subprocess.check_output(["find", data_dir]).split()
 	delete_list = []
 	for f in files:
@@ -58,9 +57,13 @@ def drop_raw_files(data_dir = "/usr/local/var/ftp_sync/downloaded", cutoff_date 
 		if date_str:
 			file_date = time.strptime(date_str,"%y%m%d")
 			if file_date < cutoff_date:
-				delete_list += [date_str]
-	for w in sorted(delete_list):
+				delete_list += [f]
+	for w in delete_list:
 		print w
+		try:
+			subprocess.call(["rm", w])
+		except:
+			print "error deleteing %s"%w
 		
 	
 	
@@ -68,8 +71,7 @@ def drop_raw_files(data_dir = "/usr/local/var/ftp_sync/downloaded", cutoff_date 
 
 if __name__ == "__main__":
         con,cur = mysql_login.mysql_login()
-	cutoff_date = datetime.date.today() - datetime.timedelta(days = 30*6)
-	#partitionDrop(cutoff_date,"DWA_SF_Cookie",cur)	
+	partitionDrop(cur)	
 	drop_raw_files()
 	if (con):
 		con.commit()

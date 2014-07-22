@@ -9,6 +9,7 @@ import os
 import re
 import datetime
 import mysql_login
+import cleanup
 from warnings import filterwarnings
 filterwarnings('ignore', category = mdb.Warning)
 
@@ -354,7 +355,7 @@ def csv_Import(file_name,cur,con, update_exclude=True):
 		cur.execute("INSERT IGNORE INTO DWA_SF_Cookie.exclude_list (filename) VALUES ('%s')"%file_name)
 	
 	
-def csv_Standard(file_name, ad_dict, cur,con, insert_interval = 1, print_interval = 1000, update_exclude=True):
+def csv_Standard(file_name, ad_dict, cur,con, insert_interval = 1, print_interval = 1, update_exclude=True):
 	cur.execute("USE DWA_SF_Cookie")
 	# distribute Standard CSV file into DB tables for each Advertiser.
 
@@ -386,7 +387,7 @@ def csv_Standard(file_name, ad_dict, cur,con, insert_interval = 1, print_interva
 			# with keys set, make a dict of the line. A few ugly lines for URL/date weirdness.
 			row_d = {}
 			for i in range(len(vals)):
-				row_d[col_names[i]] = "'%s'"%vals[i]
+				row_d[col_names[i]] = "'%s'"%vals[i].replace("'","")
 			# urls may contain ' chars. 
 			row_d["Referrer"] = "'%s'"%row_d["Referrer"].replace("'","")
 			row_d['EventDate'] = "STR_TO_DATE(%s,'%%c/%%e/%%Y %%l:%%i:%%s %%p')"%row_d['EventDate']
@@ -447,7 +448,18 @@ def csv_Standard(file_name, ad_dict, cur,con, insert_interval = 1, print_interva
 				line_i, file_name[-13:-4], records,insert_d[adID]["tblName"],time_elapsed, records_per_second)
 				
 				# reset
-				cur.execute(stmt)
+				try:
+					cur.execute(stmt)
+				except:
+					# to deal with occasional problems, simply skip indivudal records. 
+					# first, take print_interval to 1. If it is already 1, skip.
+					print "Exception executing SQL"
+					if print_interval > 1:
+						print "restarting, one record at a time.\n\n\n\n"
+						return load_all_Standard(Std_dir,cur,con, 1)
+					else:
+						print "Skipping record."
+				
 				stmt, records = "",0
 				
 			insert_d[adID]["stmt"], insert_d[adID]["records"] = stmt, records
@@ -548,9 +560,10 @@ if __name__ == "__main__":
 	end = datetime.datetime.now()
 	print "db updated in %s seconds"%(end-start).seconds
 		
+	print "cleaning up old files and partitions"
 
-
-
+        cleanup.partitionDrop(cur)
+        cleanup.drop_raw_files()
 	if con:
 		con.commit()
 		con.close()	
