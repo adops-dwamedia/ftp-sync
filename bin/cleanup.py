@@ -42,7 +42,7 @@ def partitionDrop(d,db,cur):
 def drop_raw_files(data_dir = "/usr/local/var/ftp_sync/downloaded", cutoff_date = datetime.date.today() - datetime.timedelta(days = 39)):
 	if type(cutoff_date) == datetime.date:
 		cutoff_date = cutoff_date.timetuple()
-
+	print cutoff_data
 	files = subprocess.check_output(["find", data_dir]).split()
 	delete_list = []
 	for f in files:
