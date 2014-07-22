@@ -184,7 +184,7 @@ def ftp_sync(sync_dir,cur):
 	server_files = subprocess.check_output(["ftp", "-p", "-i", "ftp.platform.mediamind.com"], stdin = p1.stdout).split()
 	server_files = [sf for sf in server_files if sf[-4:] != "done" and sf != "info"]
 	
-	server_files = [f for f in server_files if f not in excludes]
+	server_files = [f for f in server_files if f not in excludes and "test" not in f]
 	for f in server_files:
 		print "\tfetching %s"%f
 		subprocess.call(["wget", "-nc","--reject=done","-q","-P%s"%sync_dir,"ftp://ftp.platform.mediamind.com/%s"%f])
@@ -560,10 +560,11 @@ if __name__ == "__main__":
 	end = datetime.datetime.now()
 	print "db updated in %s seconds"%(end-start).seconds
 		
-	print "cleaning up old files and partitions"
+	print "cleaning up old files and partitions..."
 
         cleanup.partitionDrop(cur)
         cleanup.drop_raw_files()
+	print "done."
 	if con:
 		con.commit()
 		con.close()	
