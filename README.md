@@ -1,3 +1,7 @@
-.netrc file in home directory of user must have proper authentication (with only u read permissions)
+#############
+Cookie Update
+#############
 
-due to hosting on github, password is saved in external file (../../pw/mysql)
+A python program to download raw data from an FTP server.
+
+Much of the code is tailored specifically to MediaMind (Sizmek)'s file formats.
