@@ -29,8 +29,12 @@ def initialize(cur,con):
 	
 	cur.execute("CREATE TABLE IF NOT EXISTS DWA_SF_Cookie.exclude_list "+\
 	"(filename VARCHAR(255), ts TIMESTAMP NOT NULL DEFAULT NOW(), PRIMARY KEY(filename))")
+	try:
+		match("/usr/local/var/ftp_sync/downloaded/Match/",cur,con)
+	except:
+		print "Match file method raised error"
 	
-	
+	cur.execute("USE DWA_SF_Cookie")	
 	conv_stmt = "CREATE TABLE IF NOT EXISTS `MM_Conversion` (" +\
 	"`userID` char(36) NOT NULL DEFAULT ''," +\
 	"`ConversionID` char(36) NOT NULL DEFAULT ''," +\
@@ -99,6 +103,7 @@ def initialize(cur,con):
 		"KEY `eventDate` (`EventDate`)" +\
 		") ENGINE=InnoDB DEFAULT CHARSET=utf8"
 		cur.execute(tbl_stmt)
+		con.commit()
 		partition_by_day(tblName,cur, startDate = -120, endDate = 30)
 		
 		
@@ -123,6 +128,7 @@ def get_ad_dict(cur):
 	return ad_dict
 
 def match(match_path, cur, con,update_exclude = True):
+
 	cur.execute("CREATE DATABASE IF NOT EXISTS SF_Match")
 	cur.execute("SELECT filename FROM DWA_SF_Cookie.exclude_list")
 	excludes = [f[0] for f in cur.fetchall()]
@@ -551,13 +557,9 @@ if __name__ == "__main__":
 	start = datetime.datetime.now()
 	con,cur = mysql_login.mysql_login()
 	con.autocommit(False)
+	initialize(cur,con)
 	ftp_sync("/usr/local/var/ftp_sync/downloaded",cur)
 	unzip_all("/usr/local/var/ftp_sync/downloaded/", cur)
-	try:
-		match("/usr/local/var/ftp_sync/downloaded/Match/",cur,con)
-	except:
-		print "Match file method raised error"
-	initialize(cur,con)
 	#partition_by_day("MM_Rich",cur, col="InteractionDate",startDate = -120, endDate = 30)
 
 #	Rich and Conversion files
