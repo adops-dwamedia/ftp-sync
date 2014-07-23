@@ -14,8 +14,15 @@ from warnings import filterwarnings
 filterwarnings('ignore', category = mdb.Warning)
 
 def initialize(cur,con):
+	""" 
+	Creates database DWA_SF_Cookie, which houses main data, and SF_Match, which contains
+	all match tables for various ID's.
+	"""
+
 	cur.execute("CREATE DATABASE IF NOT EXISTS DWA_SF_Cookie")
 	cur.execute("USE DWA_SF_Cookie")
+	# the match function creates the SF_Match database, so this shouldn't be necessary.
+	cur.execute("CREATE DATABASE IF NOT EXISTS SF_Match")
 	
 	# SF_Match needs to be initialized as well
 	# configure FTP??
@@ -70,7 +77,7 @@ def initialize(cur,con):
 	"PRIMARY KEY (`EventID`,`UserID`, `InteractionDate`)" +\
 	") ENGINE=InnoDB DEFAULT CHARSET=latin1"
 	
-#	cur.execute(rich_stmt)
+	cur.execute(rich_stmt)
 	
 	
 	ad_dict = get_ad_dict(cur)
@@ -116,6 +123,7 @@ def get_ad_dict(cur):
 	return ad_dict
 
 def match(match_path, cur, con,update_exclude = True):
+	cur.execute("CREATE DATABASE IF NOT EXISTS SF_Match")
 	cur.execute("SELECT filename FROM DWA_SF_Cookie.exclude_list")
 	excludes = [f[0] for f in cur.fetchall()]
 	cur.execute("USE SF_Match")
