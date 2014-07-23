@@ -16,8 +16,13 @@ filterwarnings('ignore', category = mdb.Warning)
 def initialize(cur,con):
 	""" 
 	Creates database DWA_SF_Cookie, which houses main data, and SF_Match, which contains
-	all match tables for various ID's.
+	all match tables for various ID's. Also, create data directories.
 	"""
+
+	subprocess.call(["mkdir", "-p", "/usr/local/var/ftp_sync/downloaded/Standard/"])
+	subprocess.call(["mkdir", "-p", "/usr/local/var/ftp_sync/downloaded/Conversion/"])
+	subprocess.call(["mkdir", "-p", "/usr/local/var/ftp_sync/downloaded/Rich/"])
+	subprocess.call(["mkdir", "-p", "/usr/local/var/ftp_sync/downloaded/Match/"])
 
 	cur.execute("CREATE DATABASE IF NOT EXISTS DWA_SF_Cookie")
 	cur.execute("USE DWA_SF_Cookie")
